@@ -40,7 +40,7 @@ module.exports = async (interaction) => {
         const userEmbed = new EmbedBuilder()
             .setColor(colors.blue)
             .setTitle('Απόκτηση ρόλου Guest')
-            .setDescription('Ένας διαχειριστής του διακομιστή σάς έδωσε τον ρόλο Guest. Μόλις αποκτήσετε ιδρυματικό λογαριασμό, χρησιμοποιήστε την εντολή `/auth` για να επιβεβαιωθείτε και να αποκτήσετε πλήρη πρόσβαση.');
+            .setDescription('Ένας διαχειριστής του server σάς έδωσε τον ρόλο Guest. Μόλις αποκτήσετε ιδρυματικό λογαριασμό, χρησιμοποιήστε την εντολή `/auth` για να επιβεβαιωθείτε και να αποκτήσετε πλήρη πρόσβαση.');
         await member.send({ embeds: [userEmbed] }).catch(() => {});
 
         await interaction.reply({ content: `Ο ρόλος <@&${process.env.GUEST_ROLE_ID}> δόθηκε επιτυχώς.`, ephemeral: true });

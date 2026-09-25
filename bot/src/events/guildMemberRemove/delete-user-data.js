@@ -16,7 +16,7 @@ module.exports = async (member, client) => {
             await adminLog(client, new EmbedBuilder()
                 .setColor(colors.orange)
                 .setTitle('Αποχώρηση μέλους')
-                .setDescription(`Ο χρήστης <@${member.id}> αποχώρησε από τον διακομιστή και τα δεδομένα επιβεβαίωσής του διαγράφηκαν.`));
+                .setDescription(`Ο χρήστης <@${member.id}> αποχώρησε από τον server και τα δεδομένα επιβεβαίωσής του διαγράφηκαν.`));
         }
     } catch (err) {
         console.error(`Could not delete data of departed member ${member.id}:`, err);

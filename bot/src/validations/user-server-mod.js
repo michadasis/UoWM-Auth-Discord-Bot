@@ -12,7 +12,7 @@ module.exports = async ({ interaction, commandObj }) => {
     const errorEmbed = new EmbedBuilder()
         .setColor(colors.red)
         .setTitle('Σφάλμα εκτέλεσης εντολής')
-        .setDescription('Αυτή η εντολή μπορεί να εκτελεστεί μόνο από διαχειριστές ή συντονιστές του διακομιστή.');
+        .setDescription('Αυτή η εντολή μπορεί να εκτελεστεί μόνο από διαχειριστές ή συντονιστές του server.');
     await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
     return true;
 };
