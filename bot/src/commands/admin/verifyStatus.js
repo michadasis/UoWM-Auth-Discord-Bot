@@ -16,7 +16,7 @@ module.exports = {
         const record = await getVerification(target.id);
         const guestRows = await pool.query('SELECT reason, given_by FROM guests WHERE discord_id = ?', [target.id]);
         const pending = await pool.query(
-            'SELECT COUNT(*) AS n FROM auth_states WHERE discord_user_id = ? AND used_at IS NULL AND expires_at > ?',
+            'SELECT COUNT(*) AS n FROM email_challenges WHERE discord_user_id = ? AND expires_at > ?',
             [target.id, Date.now()],
         );
 
@@ -33,7 +33,7 @@ module.exports = {
                 { name: 'Ιδιότητα', value: record ? AFFILIATION_LABELS[record.affiliation] : '-', inline: true },
                 { name: 'Ημερομηνία', value: record ? time(new Date(record.verified_at)) : '-', inline: true },
                 { name: 'Guest', value: guestText },
-                { name: 'Ενεργός σύνδεσμος /auth', value: Number(pending[0].n) > 0 ? 'Ναι' : 'Όχι' },
+                { name: 'Εκκρεμής κωδικός email', value: Number(pending[0].n) > 0 ? 'Ναι' : 'Όχι' },
             );
 
         await interaction.reply({ embeds: [embed], ephemeral: true, allowedMentions: { parse: [] } });

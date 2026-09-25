@@ -23,6 +23,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Faculty list (data/faculty-emails.txt), read-only.
+    volumes:
+      - ./data:/bot/data:ro
     environment:
       DISCORD_TOKEN: ${DISCORD_TOKEN}
       GUILD_ID: ${GUILD_ID}
@@ -35,78 +38,21 @@ services:
       GUEST_CHANNEL_ID: ${GUEST_CHANNEL_ID}
       SEMESTER_ROLE_IDS: ${SEMESTER_ROLE_IDS:-}
       SEMESTER_ALLOWED_ROLE_IDS: ${SEMESTER_ALLOWED_ROLE_IDS:-}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
-      AUTH_PROVIDER: ${AUTH_PROVIDER}
-      DB_HOST: db
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-
-  web:
-    build: ./web
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    # Bound to localhost: put a TLS-terminating reverse proxy in front (see README).
-    ports:
-      - "127.0.0.1:${WEB_PORT:-3000}:3000"
-    # Faculty list for the email provider (data/faculty-emails.txt), read-only.
-    volumes:
-      - ./data:/app/data:ro
-    environment:
-      ORIGIN: ${PUBLIC_BASE_URL}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
-      PUBLIC_DISCORD_INVITE: ${PUBLIC_DISCORD_INVITE:-}
-      AUTH_PROVIDER: ${AUTH_PROVIDER}
-      ALLOW_INSECURE_DEV: ${ALLOW_INSECURE_DEV:-}
-      EMAIL_TRANSPORT: ${EMAIL_TRANSPORT:-}
+      UNI_ID_HASH_SECRET: ${UNI_ID_HASH_SECRET}
+      EMAIL_TRANSPORT: ${EMAIL_TRANSPORT:-smtp}
       EMAIL_FROM: ${EMAIL_FROM:-}
       EMAIL_DOMAIN: ${EMAIL_DOMAIN:-}
       EMAIL_STUDENT_PATTERN: ${EMAIL_STUDENT_PATTERN:-}
-      FACULTY_EMAILS_FILE: /app/data/faculty-emails.txt
+      FACULTY_EMAILS_FILE: /bot/data/faculty-emails.txt
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-}
       SMTP_SECURE: ${SMTP_SECURE:-}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
-      OIDC_ISSUER: ${OIDC_ISSUER:-}
-      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
-      OIDC_SCOPES: ${OIDC_SCOPES:-}
-      OIDC_FETCH_USERINFO: ${OIDC_FETCH_USERINFO:-}
-      MOCK_ISSUER: ${MOCK_ISSUER:-}
-      MOCK_INTERNAL_ORIGIN: ${MOCK_INTERNAL_ORIGIN:-}
-      UNI_ID_HASH_SECRET: ${UNI_ID_HASH_SECRET}
-      EXPECTED_HOME_ORG: ${EXPECTED_HOME_ORG:-}
-      STUDENT_DEPARTMENT_FILTER: ${STUDENT_DEPARTMENT_FILTER:-}
-      STUDENT_DEPARTMENT_CLAIM: ${STUDENT_DEPARTMENT_CLAIM:-}
-      STUDENT_DEPARTMENT_PATTERN: ${STUDENT_DEPARTMENT_PATTERN:-}
-      DISCORD_TOKEN: ${DISCORD_TOKEN}
-      GUILD_ID: ${GUILD_ID}
-      ADMIN_ROLE_ID: ${ADMIN_ROLE_ID}
-      MODERATOR_ROLE_ID: ${MODERATOR_ROLE_ID}
-      STUDENT_ROLE_ID: ${STUDENT_ROLE_ID}
-      PROFESSOR_ROLE_ID: ${PROFESSOR_ROLE_ID}
-      GUEST_ROLE_ID: ${GUEST_ROLE_ID}
-      ADMIN_CHANNEL_ID: ${ADMIN_CHANNEL_ID}
-      GUEST_CHANNEL_ID: ${GUEST_CHANNEL_ID}
       DB_HOST: db
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
-
-  # Local development only: `docker compose --profile mock up`. Never run in production.
-  mock-idp:
-    profiles: ["mock"]
-    build: ./mock-idp
-    ports:
-      - "127.0.0.1:4000:4000"
-    environment:
-      MOCK_ISSUER: ${MOCK_ISSUER:-http://localhost:4000}
-      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
 
 volumes:
   mariadb-data:

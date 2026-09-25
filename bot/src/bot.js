@@ -1,6 +1,15 @@
 const { Client, GatewayIntentBits } = require("discord.js");
 const { CommandKit } = require("commandkit");
 const path = require("path");
+const { loadEmailConfig } = require("./lib/config");
+
+// Fail fast on missing or invalid email settings instead of at the first /auth.
+try {
+    loadEmailConfig();
+} catch (err) {
+    console.error(err.message);
+    process.exit(1);
+}
 
 const client = new Client({
     intents: [

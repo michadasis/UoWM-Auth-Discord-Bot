@@ -12,6 +12,7 @@
   "dependencies": {
     "commandkit": "^0.1.10",
     "discord.js": "^14.27.0",
-    "mariadb": "^3.5.4"
+    "mariadb": "^3.5.4",
+    "nodemailer": "^10.0.10"
   }
 }

@@ -1,5 +1,7 @@
 # Registration request to UoWM IT (Greek)
 
+Only relevant if you bring back the SSO version (git tag `sso-web-version`); the current bot uses email codes and needs no registration.
+
 Submit it as a ticket at https://helpdesk.uowm.gr, or email it to support@uowm.gr from your institutional address.
 UoWM IT states that requests sent through other channels cannot be processed
 (https://noc.uowm.gr/www/contact/). Replace the placeholders in angle brackets before sending.

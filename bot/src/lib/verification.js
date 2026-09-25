@@ -14,7 +14,7 @@ async function getVerification(discordUserId) {
 async function removeVerification(guild, discordUserId, reason) {
     const record = await getVerification(discordUserId);
     await pool.query("DELETE FROM users WHERE discord_user_id = ?", [discordUserId]);
-    await pool.query("DELETE FROM auth_states WHERE discord_user_id = ?", [discordUserId]);
+    await pool.query("DELETE FROM email_challenges WHERE discord_user_id = ?", [discordUserId]);
 
     const member = guild ? await guild.members.fetch(discordUserId).catch(() => null) : null;
     if (member) {

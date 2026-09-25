@@ -10,7 +10,7 @@ module.exports = async (member, client) => {
     try {
         const users = await pool.query('DELETE FROM users WHERE discord_user_id = ?', [member.id]);
         const guests = await pool.query('DELETE FROM guests WHERE discord_id = ?', [member.id]);
-        await pool.query('DELETE FROM auth_states WHERE discord_user_id = ?', [member.id]);
+        await pool.query('DELETE FROM email_challenges WHERE discord_user_id = ?', [member.id]);
 
         if (users.affectedRows || guests.affectedRows) {
             await adminLog(client, new EmbedBuilder()

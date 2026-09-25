@@ -1,4 +1,4 @@
-const { purgeOldStates } = require("../../lib/authState");
+const { purgeExpired } = require("../../lib/cleanup");
 const { semesterConfig, semesterRolesToStrip } = require("../../lib/semesterRoles");
 
 const PURGE_INTERVAL_MS = 15 * 60 * 1000;
@@ -22,7 +22,7 @@ async function sweepSemesterRoles(client) {
 }
 
 module.exports = async (c, client) => {
-    const purge = () => purgeOldStates().catch((err) => console.error('Purging auth states failed:', err));
+    const purge = () => purgeExpired().catch((err) => console.error("Purging expired codes failed:", err));
     await purge();
     setInterval(purge, PURGE_INTERVAL_MS).unref();
 
