@@ -2,7 +2,8 @@
 // `discord` is an adapter (lib/discordAdapter.js), faked in tests.
 
 function createLinker({ repo, discord, roles, logger = console }) {
-    const adminMentions = () => [roles.adminRoleId, roles.moderatorRoleId].filter(Boolean);
+    // Deduplicated: Discord rejects the message if the admin and moderator role are the same.
+    const adminMentions = () => [...new Set([roles.adminRoleId, roles.moderatorRoleId].filter(Boolean))];
 
     async function linkAccount(discordUserId, uniIdHash, affiliation) {
         const existing = await repo.findUserByDiscordId(discordUserId);

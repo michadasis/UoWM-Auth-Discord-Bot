@@ -19,6 +19,14 @@ const client = new Client({
     ],
 });
 
+// discord.js renamed "ready" to "clientReady"; CommandKit 0.1.x still listens to "ready" internally
+// (command registration) and for the events/ folder. Redirect those listeners so nothing uses the
+// deprecated event. Remove when upgrading to a CommandKit version that uses clientReady.
+for (const method of ['on', 'once']) {
+    const original = client[method].bind(client);
+    client[method] = (event, listener) => original(event === 'ready' ? 'clientReady' : event, listener);
+}
+
 new CommandKit({
     client,
     commandsPath: path.join(__dirname, 'commands'),

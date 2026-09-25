@@ -207,6 +207,21 @@ describe("email code verification", () => {
     });
 });
 
+describe("admin log mentions", () => {
+    test("the same role as admin and moderator is mentioned once", async () => {
+        const { createLinker } = require("../src/lib/linker");
+        const messages = [];
+        const linker = createLinker({
+            repo: { findUserByDiscordId: async () => null, insertUser: async () => "inserted", getGuest: async () => null },
+            discord: { getMember: async () => ({ roles: [] }), addRole: async () => {}, adminLog: async (m) => messages.push(m) },
+            roles: { studentRoleId: "s", professorRoleId: "p", adminRoleId: "same", moderatorRoleId: "same" },
+        });
+        await linker.linkAccount("discord-A", "hash", "faculty");
+        assert.deepEqual(messages[0].allowedMentions.roles, ["same"]);
+        assert.equal(messages[0].content, "<@&same>");
+    });
+});
+
 describe("email policy and config", () => {
     const config = loadEmailConfig({ EMAIL_TRANSPORT: "console", UNI_ID_HASH_SECRET: "x".repeat(32) });
 
