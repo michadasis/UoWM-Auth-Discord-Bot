@@ -33,7 +33,8 @@ module.exports = {
                 color: 0x0d86e3,
                 title: 'Στάλθηκε κωδικός',
                 description:
-                    `Στείλαμε έναν εξαψήφιο κωδικό στο **${result.maskedAddress}** (ελέγξτε και τα Ανεπιθύμητα/Junk).\n\n` +
+                    // Inline code: the "*" of the masked address would otherwise break Discord's bold markdown.
+                    `Στείλαμε έναν εξαψήφιο κωδικό στο \`${result.maskedAddress}\` (ελέγξτε και τα Ανεπιθύμητα/Junk).\n\n` +
                     'Πατήστε «Εισαγωγή κωδικού» ή γράψτε `/code` και τον κωδικό. Ο κωδικός ισχύει για 10 λεπτά.',
                 footer: { text: 'Δεν θα σας ζητηθεί ποτέ ο κωδικός πρόσβασης του ιδρυματικού σας λογαριασμού.' },
             }],
