@@ -1,80 +1,60 @@
-const { ApplicationCommandType, EmbedBuilder } = require('discord.js');
+const { ApplicationCommandType, EmbedBuilder, PermissionFlagsBits, InteractionContextType } = require('discord.js');
 const pool = require("../../lib/database");
 const colors = require('../../lib/colors');
-
 
 module.exports = {
     data: {
         name: 'Remove Guest Role',
-        type: ApplicationCommandType.User
+        type: ApplicationCommandType.User,
+        default_member_permissions: String(PermissionFlagsBits.ManageRoles),
+        contexts: [InteractionContextType.Guild],
     },
 
-    run: async ({ interaction, client, handler}) => {
-
-        const guestTableQuery = 'SELECT discord_id, reason, given_by, msg_id FROM guests WHERE discord_id=?';
-        const guestResult = await pool.query(guestTableQuery, interaction.targetUser.id);
+    run: async ({ interaction, client }) => {
+        const target = interaction.targetUser;
+        const guestResult = await pool.query('SELECT msg_id FROM guests WHERE discord_id = ?', [target.id]);
 
         if (guestResult.length === 0) {
             const errorEmbed = new EmbedBuilder()
                 .setColor(colors.red)
                 .setTitle('Σφάλμα')
-                .setDescription(`Ο χρήστης <@${interaction.targetUser.id}> δεν υπάρχέι στην λίστα των <@&${process.env.GUEST_ROLE_ID}>`)
-
-            interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+                .setDescription(`Ο χρήστης <@${target.id}> δεν υπάρχει στη λίστα των <@&${process.env.GUEST_ROLE_ID}>.`);
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
 
-        else {
+        const problems = [];
 
-            const adminEmbed = new EmbedBuilder()
+        await pool.query('DELETE FROM guests WHERE discord_id = ?', [target.id]);
+
+        try {
+            const channel = await client.channels.fetch(process.env.GUEST_CHANNEL_ID);
+            const message = await channel.messages.fetch(guestResult[0].msg_id);
+            await message.delete();
+        } catch (error) {
+            problems.push('η διαγραφή του μηνύματος καταγραφής');
+        }
+
+        try {
+            const member = await interaction.guild.members.fetch(target.id);
+            await member.roles.remove(process.env.GUEST_ROLE_ID, `Guest role removed by ${interaction.user.id}`);
+        } catch (error) {
+            problems.push('η αφαίρεση του ρόλου');
+        }
+
+        const embed = problems.length
+            ? new EmbedBuilder()
+                .setColor(colors.orange)
+                .setTitle('Μερικό σφάλμα')
+                .setDescription(`Ο χρήστης <@${target.id}> αφαιρέθηκε από τη λίστα των <@&${process.env.GUEST_ROLE_ID}>, αλλά απέτυχε ${problems.join(' και ')}.`)
+            : new EmbedBuilder()
                 .setColor(colors.green)
                 .setTitle('Επιτυχία')
-                .setDescription(`Ο χρήστης <@${interaction.targetUser.id}> αφαιρέθηκε από την λίστα των <@&${process.env.GUEST_ROLE_ID}> επιτυχώς`)
+                .setDescription(`Ο χρήστης <@${target.id}> αφαιρέθηκε από τη λίστα των <@&${process.env.GUEST_ROLE_ID}>.`);
 
-            try {
-                const sqlQuery = `DELETE FROM guests WHERE discord_id=?`;
-                await pool.query(sqlQuery, interaction.targetUser.id);
-            } catch (error) {
-                const adminEmbed = new EmbedBuilder()
-                    .setColor(colors.green)
-                    .setTitle('Σφάλμα')
-                    .setDescription(`Υπήρξε ένα σφάλμα στην προσπάθεια της διαγραφής του χρήστη <@${interaction.targetUser.id}> από την λίστα των <@&${process.env.GUEST_ROLE_ID}>`)
-                
-                await interaction.reply({ embeds: [adminEmbed], ephemeral: true });
-            }
-
-            try {
-                const channel = await client.channels.fetch(process.env.GUEST_CHANNEL_ID);
-                const message = await channel.messages.fetch(guestResult[0].msg_id);
-                await message.delete();
-            } catch (error) {
-                const adminEmbed = new EmbedBuilder()
-                    .setColor(colors.orange)
-                    .setTitle('Μερικό Σφάλμα')
-                    .setDescription(`Ο χρήστης <@${interaction.targetUser.id}> αφαιρέθηκε από την λίστα των <@&${process.env.GUEST_ROLE_ID}> επιτυχώς αλλά υπήρξε πρόβλημα στην διαδικασία διαγραφής του LOG μηνύματος απο το κανάλι.`)
-
-                await interaction.reply({ embeds: [adminEmbed], ephemeral: true });
-            }
-
-            try {
-                const guild = await client.guilds.fetch(process.env.GUILD_ID);
-                const user = await guild.members.fetch(interaction.user.id);
-                user.roles.remove(process.env.GUEST_ROLE_ID);
-            } catch (error) {
-                const adminEmbed = new EmbedBuilder()
-                    .setColor(colors.orange)
-                    .setTitle('Μερικό Σφάλμα')
-                    .setDescription(`Ο χρήστης <@${interaction.targetUser.id}> αφαιρέθηκε από την λίστα των <@&${process.env.GUEST_ROLE_ID}> επιτυχώς αλλά υπήρξε πρόβλημα στην διαδικασία διαγραφής του ρόλου από τον χρήστη.`)
-
-                await interaction.reply({ embeds: [adminEmbed], ephemeral: true });
-            }
-
-            await interaction.reply({ embeds: [adminEmbed], ephemeral: true });
-
-        }
-      
+        await interaction.reply({ embeds: [embed], ephemeral: true });
     },
 
     options: {
-        modOnly: true
+        modOnly: true,
     },
 };

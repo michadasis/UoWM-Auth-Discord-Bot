@@ -1,68 +1,51 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require("discord.js");
-const pool = require("../../lib/database");
-const jwt = require("jsonwebtoken");
-const colors = require('../../lib/colors');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, time, TimestampStyles } = require("discord.js");
+const colors = require("../../lib/colors");
+const { createLoginLink } = require("../../lib/authState");
+const { getVerification } = require("../../lib/verification");
 
 module.exports = {
     data: {
         name: 'auth',
-        description: 'Link your discord account with your university account.',
+        description: 'Επιβεβαίωση ιδιότητας με τον ιδρυματικό λογαριασμό UoWM.',
     },
 
-    run: async ({interaction, client, handler}) => {
-
-        const isNotDM = interaction.guild === null ? false : true
+    run: async ({ interaction }) => {
+        const ephemeral = interaction.guild !== null;
 
         try {
-
-            const sqlQuery = 'SELECT id FROM users WHERE discord_id=?';
-            const rows = await pool.query(sqlQuery, interaction.user.id)
-
-            if (rows.length === 0) {
-                const user = {
-                    discord_id: interaction.user.id
-                };
-
-                const token = jwt.sign(user, process.env.JWT_SECRET);
-
-                const authURL = `https://login.iee.ihu.gr/authorization/?client_id=${process.env.APPS_CLIENT_ID}&response_type=code&state=${token}&scope=profile&redirect_uri=${process.env.CALLBACK_URL}`;
-
-                const authEmbed = new EmbedBuilder()
-                    .setColor(colors.blue)
-                    .setTitle(':pencil: Σύνδεση λογαριασμού Discord με τον ιδρυματικό λογαριασμό.')
-                    .setDescription(`Πατήστε το κουμπί παρακάτω για να συνδέσετε τον λογαριασμό σας στο Discord με τον ιδρυματικό σας λογαριασμό. Με αυτήν την ενέργεια θα αποκτήσετε πρόσβαση σε αποκλειστικά κανάλια και πληροφορίες που προορίζονται μόνο για τους φοιτητές του τμήματος μας.`)
-                    .setFooter({ text: 'Επικοινωνήστε μαζί μας εάν αντιμετωπίσετε οποιοδήποτε πρόβλημα.' });
-                
-
-                const authButton = new ButtonBuilder()
-                    .setLabel('Σύνδεση')
-                    .setStyle(ButtonStyle.Link)
-                    .setURL(authURL)
-
-                const authActionRow = new ActionRowBuilder()
-                    .addComponents(authButton)
-
-                interaction.reply({ embeds: [authEmbed], components: [authActionRow], ephemeral: isNotDM });
-                
-            }
-
-            if (rows.length === 1) {
-                const  alreadyAuthedEmbed = new EmbedBuilder()
+            if (await getVerification(interaction.user.id)) {
+                const embed = new EmbedBuilder()
                     .setColor(colors.green)
-                    .setTitle(':white_check_mark: Υπάρχων χρήστης')
-                    .setDescription(`Είστε ήδη αυθεντικοποιημένοι. Αν πιστεύετε ότι αυτό είναι λάθος, παρακαλούμε επικοινωνήστε μαζί μας.`)
-                    .setFooter({ text: 'Ευχαριστούμε για την κατανόηση.' });
-
-                interaction.reply({ embeds: [alreadyAuthedEmbed], ephemeral: isNotDM });
+                    .setTitle('Ήδη επιβεβαιωμένος λογαριασμός')
+                    .setDescription('Ο λογαριασμός σας στο Discord είναι ήδη επιβεβαιωμένος. Αν θέλετε να τον αποσυνδέσετε, χρησιμοποιήστε την εντολή `/unverify`.');
+                return interaction.reply({ embeds: [embed], ephemeral });
             }
 
+            const link = await createLoginLink(interaction.user.id);
+            const expiresAt = new Date(link.expiresAt);
 
+            const embed = new EmbedBuilder()
+                .setColor(colors.blue)
+                .setTitle('Επιβεβαίωση με ιδρυματικό λογαριασμό')
+                .setDescription(
+                    'Πατήστε το κουμπί για να συνδεθείτε στην επίσημη σελίδα του Πανεπιστημίου (sso.uowm.gr). ' +
+                    'Ο κωδικός σας εισάγεται μόνο εκεί, ποτέ στο Discord.\n\n' +
+                    `Ο σύνδεσμος είναι προσωπικός, χρησιμοποιείται μία φορά και λήγει ${time(expiresAt, TimestampStyles.RelativeTime)}. Μην τον μοιραστείτε με κανέναν.`
+                )
+                .setFooter({ text: 'Ελέγξτε ότι η διεύθυνση στον browser είναι https://sso.uowm.gr πριν εισάγετε τον κωδικό σας.' });
+
+            const button = new ButtonBuilder().setLabel('Σύνδεση').setStyle(ButtonStyle.Link).setURL(link.url);
+
+            await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(button)], ephemeral });
         } catch (error) {
-            console.log(error)
+            console.error('/auth failed:', error);
+            const embed = new EmbedBuilder()
+                .setColor(colors.red)
+                .setTitle('Σφάλμα')
+                .setDescription('Δεν ήταν δυνατή η δημιουργία συνδέσμου. Δοκιμάστε ξανά σε λίγο.');
+            await interaction.reply({ embeds: [embed], ephemeral: true }).catch(() => {});
         }
-        
     },
 
-    options: {
-    },
+    options: {},
 };

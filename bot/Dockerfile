@@ -1,11 +1,7 @@
-FROM node:22.6.0-alpine
-
+FROM node:22-alpine
 WORKDIR /bot
-
 COPY package*.json ./
-
-RUN npm install
-
-COPY . .
-
-CMD [ "npm", "start" ]
+RUN npm ci --omit=dev
+COPY src ./src
+USER node
+CMD ["node", "src/bot.js"]

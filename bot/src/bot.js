@@ -2,13 +2,11 @@ const { Client, GatewayIntentBits } = require("discord.js");
 const { CommandKit } = require("commandkit");
 const path = require("path");
 
-
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
+        // Privileged: needed for role sync on join/leave/role changes. Enable "Server Members Intent" in the developer portal.
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
     ],
 });
 
@@ -21,4 +19,4 @@ new CommandKit({
     bulkRegister: true,
 });
 
-client.login(`${process.env.DISCORD_TOKEN}`);
+client.login(process.env.DISCORD_TOKEN);

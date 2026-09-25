@@ -1,0 +1,12 @@
+{
+  "name": "mock-idp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mock OpenID Connect provider for local development and tests. Not for production.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT"
+}

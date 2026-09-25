@@ -1,31 +1,19 @@
 <script>
-  import "../app.css";
-  import { page } from '$app/stores';
-  import { initFlash } from 'sveltekit-flash-message/client';
-  import toast, { Toaster } from 'svelte-french-toast';
-  import Navbar from "../lib/components/Navbar.svelte";
+	import '../app.css';
+	import Navbar from '$lib/components/Navbar.svelte';
+	import Footer from '$lib/components/Footer.svelte';
 
-  const flash = initFlash(page, {
-    flashCookieOptions: { sameSite: 'lax', httpOnly: false }
-  });
-  
-  $: if ($flash) {
-    switch ($flash.type) {
-      case "success":
-        toast.success($flash.message, {duration: 5000});
-        break;
-      case "error":
-        toast.error($flash.message, {duration: 5000});
-        break;
-    }
-  }
+	let { children } = $props();
 </script>
 
 <svelte:head>
-  <title>IEE Discord</title>
+	<title>Πληροφορική UoWM Discord</title>
 </svelte:head>
-<Toaster/>
-<div class="flex h-full flex-col">
-  <Navbar/>
-  <slot/>
+
+<div class="theme-dark flex min-h-screen flex-col bg-skin-base">
+	<Navbar />
+	<main class="flex-grow">
+		{@render children()}
+	</main>
+	<Footer />
 </div>

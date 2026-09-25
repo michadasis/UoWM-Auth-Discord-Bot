@@ -1,0 +1,77 @@
+[
+    {
+        "id": "student",
+        "label": "Student, Department of Informatics",
+        "claims": {
+            "sub": "mock-sub-student-001",
+            "uid": "ics00001",
+            "eduPersonAffiliation": ["student", "member"],
+            "eduPersonPrimaryAffiliation": "student",
+            "eduPersonScopedAffiliation": ["student@uowm.gr", "member@uowm.gr"],
+            "schacHomeOrganization": "uowm.gr",
+            "schGrAcEnrollment": "urn:mock:uowm.gr:department:informatics"
+        }
+    },
+    {
+        "id": "student-other-dept",
+        "label": "Student, another UoWM department",
+        "claims": {
+            "sub": "mock-sub-student-002",
+            "uid": "mech00002",
+            "eduPersonAffiliation": ["student", "member"],
+            "eduPersonPrimaryAffiliation": "student",
+            "eduPersonScopedAffiliation": ["student@uowm.gr", "member@uowm.gr"],
+            "schacHomeOrganization": "uowm.gr",
+            "schGrAcEnrollment": "urn:mock:uowm.gr:department:mechanical-engineering"
+        }
+    },
+    {
+        "id": "faculty",
+        "label": "Faculty member",
+        "claims": {
+            "sub": "mock-sub-faculty-001",
+            "uid": "prof0001",
+            "eduPersonAffiliation": ["faculty", "employee", "member"],
+            "eduPersonPrimaryAffiliation": "faculty",
+            "eduPersonScopedAffiliation": ["faculty@uowm.gr", "employee@uowm.gr", "member@uowm.gr"],
+            "schacHomeOrganization": "uowm.gr"
+        }
+    },
+    {
+        "id": "staff",
+        "label": "Administrative staff",
+        "claims": {
+            "sub": "mock-sub-staff-001",
+            "uid": "staff0001",
+            "eduPersonAffiliation": ["staff", "employee", "member"],
+            "eduPersonPrimaryAffiliation": "staff",
+            "eduPersonScopedAffiliation": ["staff@uowm.gr", "employee@uowm.gr", "member@uowm.gr"],
+            "schacHomeOrganization": "uowm.gr"
+        }
+    },
+    {
+        "id": "outsider",
+        "label": "Outsider (affiliate, no student/staff affiliation)",
+        "claims": {
+            "sub": "mock-sub-outsider-001",
+            "uid": "guest0001",
+            "eduPersonAffiliation": ["affiliate"],
+            "eduPersonPrimaryAffiliation": "affiliate",
+            "eduPersonScopedAffiliation": ["affiliate@uowm.gr"],
+            "schacHomeOrganization": "uowm.gr"
+        }
+    },
+    {
+        "id": "foreign-student",
+        "label": "Student of another institution (federated login)",
+        "claims": {
+            "sub": "mock-sub-foreign-001",
+            "uid": "other0001",
+            "eduPersonAffiliation": ["student"],
+            "eduPersonPrimaryAffiliation": "student",
+            "eduPersonScopedAffiliation": ["student@example.edu"],
+            "schacHomeOrganization": "example.edu",
+            "schGrAcEnrollment": "urn:mock:uowm.gr:department:informatics"
+        }
+    }
+]

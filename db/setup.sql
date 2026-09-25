@@ -1,83 +1,36 @@
--- Create the users table
+-- Verified members. This is the only personal data the service keeps.
+-- uni_id_hash is HMAC-SHA256(UNI_ID_HASH_SECRET, issuer + "\n" + sub), never the plain identifier.
+-- The UNIQUE key enforces "one university account -> at most one Discord account".
 CREATE TABLE IF NOT EXISTS users (
-    id INT NOT NULL AUTO_INCREMENT,
-    discord_id VARCHAR(28) NOT NULL,
-	user_role ENUM('student', 'staff') NOT NULL,
-	iee_id INT NOT NULL,
-	regyear INT,
-	PRIMARY KEY (`id`)
+    discord_user_id VARCHAR(20) NOT NULL,
+    uni_id_hash CHAR(64) NOT NULL,
+    affiliation ENUM('student', 'faculty', 'staff') NOT NULL,
+    verified_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (discord_user_id),
+    UNIQUE KEY uq_users_uni_id_hash (uni_id_hash)
 );
 
+-- Pending /auth links. Short-lived, purged by the bot shortly after expiry.
+-- state_hash is SHA-256 of the random token in the link, so a DB leak does not leak usable links.
+-- Times are epoch milliseconds to avoid time zone ambiguity between containers.
+CREATE TABLE IF NOT EXISTS auth_states (
+    state_hash CHAR(64) NOT NULL,
+    discord_user_id VARCHAR(20) NOT NULL,
+    code_verifier VARCHAR(128) NULL,
+    nonce VARCHAR(64) NULL,
+    created_at BIGINT NOT NULL,
+    expires_at BIGINT NOT NULL,
+    used_at BIGINT NULL,
+    PRIMARY KEY (state_hash),
+    KEY idx_auth_states_discord_user_id (discord_user_id),
+    KEY idx_auth_states_expires_at (expires_at)
+);
+
+-- Manually granted guest role (e.g. first-year students without an institutional account yet).
 CREATE TABLE IF NOT EXISTS guests (
-    discord_id VARCHAR(28) NOT NULL,
+    discord_id VARCHAR(20) NOT NULL,
     reason TEXT,
-    given_by VARCHAR(28),
-    msg_id VARCHAR(128)
+    given_by VARCHAR(20),
+    msg_id VARCHAR(20),
+    PRIMARY KEY (discord_id)
 );
-
--- Create the user_regyear_counts table
-CREATE TABLE IF NOT EXISTS user_regyear_counts (
-    registration_year INT NOT NULL,
-    user_count INT NOT NULL,
-    PRIMARY KEY (`registration_year`)
-);
-
--- Create the user_role_totals table
-CREATE TABLE IF NOT EXISTS user_role_totals (
-	user_role ENUM('student', 'staff') NOT NULL,
-	user_count INT DEFAULT 0,
-    PRIMARY KEY (`user_role`)
-);
-
--- Insert initial value for user_role_totals table
-INSERT IGNORE INTO user_role_totals (user_role, user_count)
-VALUES
-    ('student', 0),
-    ('staff', 0);
-
--- Delimiter to allow for trigger creation with BEGIN...END block
-DELIMITER $$
-
--- Trigger for inserts
-CREATE TRIGGER after_user_insert
-AFTER INSERT ON users
-FOR EACH ROW
-BEGIN
-
-    -- Update the user_role_totals table for the new user
-    INSERT INTO user_role_totals (user_role, user_count)
-    VALUES (NEW.user_role, 1)
-    ON DUPLICATE KEY UPDATE user_count = user_count + 1;
-
-    -- Update the user_regyear_counts table for the new user
-    IF NEW.regyear IS NOT NULL THEN
-        INSERT INTO user_regyear_counts (registration_year, user_count)
-        VALUES (NEW.regyear, 1)
-        ON DUPLICATE KEY UPDATE user_count = user_count + 1;
-    END IF;
-END$$
-
--- Trigger for deletes
-CREATE TRIGGER after_user_delete
-AFTER DELETE ON users
-FOR EACH ROW
-BEGIN
-
-    -- Update the user_role_totals table for the deleted user
-    UPDATE user_role_totals
-    SET user_count = user_count - 1
-    WHERE user_role = OLD.user_role;
-
-    -- Update the user_regyear_counts table for the deleted user
-    IF OLD.regyear IS NOT NULL THEN
-        UPDATE user_regyear_counts
-        SET user_count = user_count - 1
-        WHERE registration_year = OLD.regyear;
-    END IF;
-
-    DELETE FROM user_regyear_counts
-    WHERE user_count = 0;
-END$$
-
--- Reset the delimiter back to default
-DELIMITER ;

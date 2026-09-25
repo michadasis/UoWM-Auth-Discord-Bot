@@ -1,18 +1,17 @@
 {
-  "name": "iee_discord_bot",
+  "name": "uowm-discord-bot",
   "version": "1.0.0",
-  "description": "",
-  "main": "bot.js",
+  "description": "Discord bot for the Department of Informatics UoWM server, adapted from IEE-Team-Atlas/IEE-Discord-Bot",
+  "main": "src/bot.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test \"test/*.test.js\"",
     "start": "node ./src/bot.js"
   },
   "author": "Thomas Soumpasis <thomasoumpasis@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "commandkit": "^0.1.10",
-    "discord.js": "^14.15.3",
-    "jsonwebtoken": "^9.0.2",
-    "mariadb": "^3.3.1"
+    "discord.js": "^14.27.0",
+    "mariadb": "^3.5.4"
   }
 }

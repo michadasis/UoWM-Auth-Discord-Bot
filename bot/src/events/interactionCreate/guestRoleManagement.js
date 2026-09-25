@@ -2,40 +2,50 @@ const pool = require("../../lib/database");
 const colors = require("../../lib/colors");
 const { EmbedBuilder } = require("discord.js");
 
+// Handles the reason modal shown by the "Give Guest Role" context menu command.
 module.exports = async (interaction) => {
+    if (!interaction.isModalSubmit() || !interaction.customId.startsWith("reason-")) return;
 
-    if (typeof interaction.customId === "string" && interaction.customId.startsWith("reason-")) {
-        const reasonInput = interaction.fields.getTextInputValue('guestRoleReason')
+    // The modal is only shown to moderators, but check again: this path bypasses command validations.
+    const roles = interaction.member?.roles?.cache;
+    if (!roles || ![process.env.ADMIN_ROLE_ID, process.env.MODERATOR_ROLE_ID].some((id) => id && roles.has(id))) {
+        return interaction.reply({ content: 'Δεν έχετε δικαίωμα για αυτή την ενέργεια.', ephemeral: true });
+    }
 
-        const user_disc_id = interaction.customId.substring(interaction.customId.lastIndexOf("-") + 1);
+    const reasonInput = interaction.fields.getTextInputValue('guestRoleReason');
+    const targetId = interaction.customId.slice("reason-".length);
 
-        const sqlQuery = 'INSERT INTO `guests` (`discord_id`, `reason`, `given_by`) VALUES (?, ?, ?)';
-        await pool.query(sqlQuery, [user_disc_id, reasonInput, interaction.user.id]);
+    try {
+        const member = await interaction.guild.members.fetch(targetId);
+        await member.roles.add(process.env.GUEST_ROLE_ID, `Guest role given by ${interaction.user.id}`);
 
-        const adminLogMsgEmbed = new EmbedBuilder()
+        await pool.query(
+            'INSERT INTO guests (discord_id, reason, given_by) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE reason = VALUES(reason), given_by = VALUES(given_by)',
+            [targetId, reasonInput, interaction.user.id],
+        );
+
+        const logEmbed = new EmbedBuilder()
             .setColor(colors.blue)
-            .setTitle('New Guest User Added')
-            .setDescription(`Ο <@${interaction.user.id}> έδωσε τον ρόλο <@&${process.env.GUEST_ROLE_ID}> στον χρήστη <@${user_disc_id}> με την αιτηολογία: \`${reasonInput}\``);
+            .setTitle('Νέος Guest')
+            .setDescription(`Ο <@${interaction.user.id}> έδωσε τον ρόλο <@&${process.env.GUEST_ROLE_ID}> στον χρήστη <@${targetId}> με αιτιολογία: \`${reasonInput}\``);
 
-        await interaction.guild.channels.fetch(process.env.GUEST_CHANNEL_ID).then(channel => 
-            channel.send({ embeds: [adminLogMsgEmbed]}).then(async msg => {
-                const updateQuery = `UPDATE guests SET msg_id=? WHERE discord_id=?`;
-                await pool.query(updateQuery, [msg.id, user_disc_id]);
-            })
-        )
+        try {
+            const channel = await interaction.guild.channels.fetch(process.env.GUEST_CHANNEL_ID);
+            const msg = await channel.send({ embeds: [logEmbed], allowedMentions: { parse: [] } });
+            await pool.query('UPDATE guests SET msg_id = ? WHERE discord_id = ?', [msg.id, targetId]);
+        } catch (err) {
+            console.error(`Could not write guest log: ${err.message}`);
+        }
 
         const userEmbed = new EmbedBuilder()
             .setColor(colors.blue)
-            .setTitle('Απόκτηση Ρόλου: Guest')
-            .setDescription(`Ένας διαχειριστής του διακομιστή μόλις σου έδωσε τον ρόλο του Guest! Εάν είσαι νεοεισακτέος και δεν έχεις ακόμα ιδρυματικό λογαριασμό, μόλις αποκτήσεις, μπορείς να χρησιμοποιήσεις την εντολή \`/auth\` για να αυθεντικοποιηθείς με τον ιδρυματικό σου λογαριασμό και να αποκτήσεις πλήρη πρόσβαση στα κανάλια.`)
+            .setTitle('Απόκτηση ρόλου Guest')
+            .setDescription('Ένας διαχειριστής του διακομιστή σάς έδωσε τον ρόλο Guest. Μόλις αποκτήσετε ιδρυματικό λογαριασμό, χρησιμοποιήστε την εντολή `/auth` για να επιβεβαιωθείτε και να αποκτήσετε πλήρη πρόσβαση.');
+        await member.send({ embeds: [userEmbed] }).catch(() => {});
 
-
-        const user = await interaction.guild.members.fetch(user_disc_id);
-        user.roles.add(process.env.GUEST_ROLE_ID);
-
-        await user.send({embeds: [userEmbed]})
-
-
-        interaction.reply({content: `<@&${process.env.GUEST_ROLE_ID}> role applied sucessfully.`, ephemeral: true});
+        await interaction.reply({ content: `Ο ρόλος <@&${process.env.GUEST_ROLE_ID}> δόθηκε επιτυχώς.`, ephemeral: true });
+    } catch (err) {
+        console.error('Giving guest role failed:', err);
+        await interaction.reply({ content: 'Δεν ήταν δυνατή η απόδοση του ρόλου Guest.', ephemeral: true }).catch(() => {});
     }
 };

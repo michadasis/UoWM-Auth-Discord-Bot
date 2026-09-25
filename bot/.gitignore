@@ -1,4 +1,2 @@
 node_modules
-data/*
-!data/*.template.json
 .env
