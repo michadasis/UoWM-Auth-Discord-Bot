@@ -1,4 +1,4 @@
-const { ApplicationCommandType, EmbedBuilder, PermissionFlagsBits, InteractionContextType } = require('discord.js');
+const { ApplicationCommandType, EmbedBuilder, PermissionFlagsBits, InteractionContextType, MessageFlags } = require('discord.js');
 const pool = require("../../lib/database");
 const colors = require('../../lib/colors');
 
@@ -19,7 +19,7 @@ module.exports = {
                 .setColor(colors.red)
                 .setTitle('Σφάλμα')
                 .setDescription(`Ο χρήστης <@${target.id}> δεν υπάρχει στη λίστα των <@&${process.env.GUEST_ROLE_ID}>.`);
-            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+            return interaction.reply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
         }
 
         const problems = [];
@@ -51,7 +51,7 @@ module.exports = {
                 .setTitle('Επιτυχία')
                 .setDescription(`Ο χρήστης <@${target.id}> αφαιρέθηκε από τη λίστα των <@&${process.env.GUEST_ROLE_ID}>.`);
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     },
 
     options: {

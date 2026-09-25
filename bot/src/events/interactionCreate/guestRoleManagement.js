@@ -1,6 +1,6 @@
 const pool = require("../../lib/database");
 const colors = require("../../lib/colors");
-const { EmbedBuilder } = require("discord.js");
+const { EmbedBuilder, MessageFlags } = require("discord.js");
 
 // Handles the reason modal shown by the "Give Guest Role" context menu command.
 module.exports = async (interaction) => {
@@ -9,7 +9,7 @@ module.exports = async (interaction) => {
     // The modal is only shown to moderators, but check again: this path bypasses command validations.
     const roles = interaction.member?.roles?.cache;
     if (!roles || ![process.env.ADMIN_ROLE_ID, process.env.MODERATOR_ROLE_ID].some((id) => id && roles.has(id))) {
-        return interaction.reply({ content: 'Δεν έχετε δικαίωμα για αυτή την ενέργεια.', ephemeral: true });
+        return interaction.reply({ content: 'Δεν έχετε δικαίωμα για αυτή την ενέργεια.', flags: MessageFlags.Ephemeral });
     }
 
     const reasonInput = interaction.fields.getTextInputValue('guestRoleReason');
@@ -43,9 +43,9 @@ module.exports = async (interaction) => {
             .setDescription('Ένας διαχειριστής του server σάς έδωσε τον ρόλο Guest. Μόλις αποκτήσετε ιδρυματικό λογαριασμό, χρησιμοποιήστε την εντολή `/auth` για να επιβεβαιωθείτε και να αποκτήσετε πλήρη πρόσβαση.');
         await member.send({ embeds: [userEmbed] }).catch(() => {});
 
-        await interaction.reply({ content: `Ο ρόλος <@&${process.env.GUEST_ROLE_ID}> δόθηκε επιτυχώς.`, ephemeral: true });
+        await interaction.reply({ content: `Ο ρόλος <@&${process.env.GUEST_ROLE_ID}> δόθηκε επιτυχώς.`, flags: MessageFlags.Ephemeral });
     } catch (err) {
         console.error('Giving guest role failed:', err);
-        await interaction.reply({ content: 'Δεν ήταν δυνατή η απόδοση του ρόλου Guest.', ephemeral: true }).catch(() => {});
+        await interaction.reply({ content: 'Δεν ήταν δυνατή η απόδοση του ρόλου Guest.', flags: MessageFlags.Ephemeral }).catch(() => {});
     }
 };

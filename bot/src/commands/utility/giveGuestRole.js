@@ -1,10 +1,10 @@
-const { ApplicationCommandType, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, PermissionFlagsBits, InteractionContextType } = require('discord.js');
+const { ApplicationCommandType, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, PermissionFlagsBits, InteractionContextType, MessageFlags } = require('discord.js');
 const pool = require("../../lib/database");
 const colors = require('../../lib/colors');
 
 function errorReply(interaction, description) {
     const embed = new EmbedBuilder().setColor(colors.red).setTitle('Σφάλμα').setDescription(description);
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
 module.exports = {

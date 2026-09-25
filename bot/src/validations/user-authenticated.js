@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require("discord.js");
+const { EmbedBuilder, MessageFlags } = require("discord.js");
 const colors = require('../lib/colors');
 const { getVerification } = require('../lib/verification');
 
@@ -13,7 +13,7 @@ module.exports = async ({ interaction, commandObj }) => {
             .setColor(colors.red)
             .setTitle('Σφάλμα εκτέλεσης εντολής')
             .setDescription('Για αυτήν την εντολή πρέπει να έχετε επιβεβαιώσει τον λογαριασμό σας. Χρησιμοποιήστε την εντολή `/auth`.');
-        await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+        await interaction.reply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
     } catch (error) {
         console.error(error);
     }

@@ -1,7 +1,7 @@
 // Shared pieces of the "enter code" step: the button under the /auth reply, its modal,
 // and running a submitted code.
 
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags } = require("discord.js");
 const { getVerification } = require("./services");
 const { embedFor } = require("./messages");
 
@@ -35,7 +35,7 @@ function codeModal() {
 
 // Defers, runs the code and replies (ephemeral in the server, normal in DMs).
 async function handleCode(interaction, code) {
-    await interaction.deferReply({ ephemeral: interaction.guild !== null });
+    await interaction.deferReply({ flags: interaction.guild !== null ? MessageFlags.Ephemeral : undefined });
     let result;
     try {
         result = await getVerification(interaction.client).submitCode(interaction.user.id, code);

@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require("discord.js");
+const { EmbedBuilder, MessageFlags } = require("discord.js");
 const colors = require("../../lib/colors");
 const { removeVerification, AFFILIATION_LABELS } = require("../../lib/verification");
 const { adminLog } = require("../../lib/adminLog");
@@ -10,8 +10,7 @@ module.exports = {
     },
 
     run: async ({ interaction, client }) => {
-        const ephemeral = interaction.guild !== null;
-        await interaction.deferReply({ ephemeral });
+        await interaction.deferReply({ flags: interaction.guild !== null ? MessageFlags.Ephemeral : undefined });
 
         try {
             const guild = await client.guilds.fetch(process.env.GUILD_ID);

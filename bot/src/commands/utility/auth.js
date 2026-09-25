@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { getVerification } = require("../../lib/services");
 const { embedFor } = require("../../lib/messages");
 const { codeButtonRow } = require("../../lib/codeEntry");
@@ -14,7 +14,7 @@ module.exports = {
             .setMaxLength(80)),
 
     run: async ({ interaction, client }) => {
-        await interaction.deferReply({ ephemeral: interaction.guild !== null });
+        await interaction.deferReply({ flags: interaction.guild !== null ? MessageFlags.Ephemeral : undefined });
 
         let result;
         try {

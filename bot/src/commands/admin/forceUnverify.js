@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType, EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType, EmbedBuilder, MessageFlags } = require("discord.js");
 const colors = require("../../lib/colors");
 const { removeVerification, AFFILIATION_LABELS } = require("../../lib/verification");
 const { adminLog } = require("../../lib/adminLog");
@@ -13,7 +13,7 @@ module.exports = {
         .addStringOption((o) => o.setName('reason').setDescription('Αιτιολογία').setMaxLength(300)),
 
     run: async ({ interaction, client }) => {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         const target = interaction.options.getUser('user', true);
         const reason = interaction.options.getString('reason') || 'Χωρίς αιτιολογία';
 

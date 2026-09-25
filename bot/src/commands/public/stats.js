@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require("discord.js");
+const { EmbedBuilder, MessageFlags } = require("discord.js");
 const pool = require("../../lib/database");
 const colors = require("../../lib/colors");
 
@@ -29,7 +29,7 @@ module.exports = {
                 `**Επιβεβαιωμένο προσωπικό:** \`${count('staff')}\``
             );
 
-        await interaction.reply({ embeds: [statsEmbed], ephemeral: interaction.guild !== null });
+        await interaction.reply({ embeds: [statsEmbed], flags: interaction.guild !== null ? MessageFlags.Ephemeral : undefined });
     },
 
     options: {},

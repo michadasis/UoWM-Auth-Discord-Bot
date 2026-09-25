@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require("discord.js");
+const { EmbedBuilder, MessageFlags } = require("discord.js");
 const colors = require('../lib/colors');
 
 // Commands with options.modOnly can only be run inside the guild by members with the admin OR moderator role.
@@ -13,6 +13,6 @@ module.exports = async ({ interaction, commandObj }) => {
         .setColor(colors.red)
         .setTitle('Σφάλμα εκτέλεσης εντολής')
         .setDescription('Αυτή η εντολή μπορεί να εκτελεστεί μόνο από διαχειριστές ή συντονιστές του server.');
-    await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
+    await interaction.reply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral }).catch(() => {});
     return true;
 };

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType, EmbedBuilder, time } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType, EmbedBuilder, time, MessageFlags } = require("discord.js");
 const colors = require("../../lib/colors");
 const pool = require("../../lib/database");
 const { getVerification, AFFILIATION_LABELS } = require("../../lib/verification");
@@ -36,7 +36,7 @@ module.exports = {
                 { name: 'Εκκρεμής κωδικός email', value: Number(pending[0].n) > 0 ? 'Ναι' : 'Όχι' },
             );
 
-        await interaction.reply({ embeds: [embed], ephemeral: true, allowedMentions: { parse: [] } });
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral, allowedMentions: { parse: [] } });
     },
 
     options: { modOnly: true },

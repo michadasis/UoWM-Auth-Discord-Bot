@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType, EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType, EmbedBuilder, MessageFlags } = require("discord.js");
 const colors = require("../../lib/colors");
 const { verifyInstructions, privacyNotice } = require("../../lib/privacyNotice");
 
@@ -16,7 +16,7 @@ module.exports = {
                 new EmbedBuilder().setColor(colors.green).setTitle('Προστασία δεδομένων').setDescription(privacyNotice),
             ],
         });
-        await interaction.reply({ content: 'Το μήνυμα δημοσιεύτηκε.', ephemeral: true });
+        await interaction.reply({ content: 'Το μήνυμα δημοσιεύτηκε.', flags: MessageFlags.Ephemeral });
     },
 
     options: { modOnly: true },
