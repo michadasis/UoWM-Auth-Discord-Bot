@@ -15,6 +15,8 @@ export function createPool(db) {
     });
 }
 
+const toNumber = (value) => (value === null || value === undefined ? null : Number(value));
+
 function mapState(row) {
     return row
         ? {
@@ -22,7 +24,12 @@ function mapState(row) {
               codeVerifier: row.code_verifier,
               nonce: row.nonce,
               expiresAt: Number(row.expires_at),
-              usedAt: row.used_at === null ? null : Number(row.used_at),
+              usedAt: toNumber(row.used_at),
+              emailUniIdHash: row.email_uni_id_hash,
+              emailAffiliation: row.email_affiliation,
+              emailCodeHash: row.email_code_hash,
+              emailSentAt: toNumber(row.email_sent_at),
+              emailAttempts: Number(row.email_attempts ?? 0),
           }
         : null;
 }
@@ -37,7 +44,9 @@ export function createMariaRepository(pool) {
     return {
         async getState(stateHash) {
             const rows = await pool.query(
-                'SELECT discord_user_id, code_verifier, nonce, expires_at, used_at FROM auth_states WHERE state_hash = ?',
+                `SELECT discord_user_id, code_verifier, nonce, expires_at, used_at,
+                        email_uni_id_hash, email_affiliation, email_code_hash, email_sent_at, email_attempts
+                 FROM auth_states WHERE state_hash = ?`,
                 [stateHash],
             );
             return mapState(rows[0]);
@@ -59,6 +68,40 @@ export function createMariaRepository(pool) {
                 [now, stateHash, now],
             );
             return result.affectedRows === 1;
+        },
+
+        // Email code flow: replaces the pending challenge. Attempts are cumulative per link.
+        async setEmailChallenge(stateHash, { uniIdHash, affiliation, codeHash, sentAt }) {
+            await pool.query(
+                `UPDATE auth_states SET email_uni_id_hash = ?, email_affiliation = ?, email_code_hash = ?, email_sent_at = ?
+                 WHERE state_hash = ? AND used_at IS NULL`,
+                [uniIdHash, affiliation, codeHash, sentAt, stateHash],
+            );
+        },
+
+        // Returns the attempt count after incrementing.
+        async incrementEmailAttempts(stateHash) {
+            await pool.query('UPDATE auth_states SET email_attempts = email_attempts + 1 WHERE state_hash = ?', [stateHash]);
+            const rows = await pool.query('SELECT email_attempts FROM auth_states WHERE state_hash = ?', [stateHash]);
+            return Number(rows[0]?.email_attempts ?? 0);
+        },
+
+        async countEmailSends({ discordUserId, targetHash, since }) {
+            const rows = await pool.query(
+                `SELECT
+                    (SELECT COUNT(*) FROM email_send_log WHERE discord_user_id = ? AND sent_at > ?) AS by_user,
+                    (SELECT COUNT(*) FROM email_send_log WHERE target_hash = ? AND sent_at > ?) AS by_target`,
+                [discordUserId, since, targetHash, since],
+            );
+            return { byUser: Number(rows[0].by_user), byTarget: Number(rows[0].by_target) };
+        },
+
+        async logEmailSend({ discordUserId, targetHash, sentAt }) {
+            await pool.query('INSERT INTO email_send_log (discord_user_id, target_hash, sent_at) VALUES (?, ?, ?)', [
+                discordUserId,
+                targetHash,
+                sentAt,
+            ]);
         },
 
         async findUserByDiscordId(discordUserId) {

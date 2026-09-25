@@ -30,6 +30,7 @@
 	"type": "module",
 	"dependencies": {
 		"mariadb": "^3.5.4",
+		"nodemailer": "^10.0.10",
 		"openid-client": "^6.8.8"
 	}
 }

@@ -21,9 +21,28 @@ CREATE TABLE IF NOT EXISTS auth_states (
     created_at BIGINT NOT NULL,
     expires_at BIGINT NOT NULL,
     used_at BIGINT NULL,
+    -- Email code provider only: the pending challenge. The code itself is never stored,
+    -- only HMAC(UNI_ID_HASH_SECRET, state_hash + code); no email address is stored.
+    email_uni_id_hash CHAR(64) NULL,
+    email_affiliation VARCHAR(16) NULL,
+    email_code_hash CHAR(64) NULL,
+    email_sent_at BIGINT NULL,
+    email_attempts INT NOT NULL DEFAULT 0,
     PRIMARY KEY (state_hash),
     KEY idx_auth_states_discord_user_id (discord_user_id),
     KEY idx_auth_states_expires_at (expires_at)
+);
+
+-- Email code provider only: sends in the last hours, for rate limiting (per Discord user and per
+-- target mailbox). target_hash is the same keyed hash as users.uni_id_hash. Purged after 24 hours.
+CREATE TABLE IF NOT EXISTS email_send_log (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    discord_user_id VARCHAR(20) NOT NULL,
+    target_hash CHAR(64) NOT NULL,
+    sent_at BIGINT NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_email_send_log_user (discord_user_id, sent_at),
+    KEY idx_email_send_log_target (target_hash, sent_at)
 );
 
 -- Manually granted guest role (e.g. first-year students without an institutional account yet).

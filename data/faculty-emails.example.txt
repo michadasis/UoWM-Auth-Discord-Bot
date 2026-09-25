@@ -1,0 +1,4 @@
+# Copy to faculty-emails.txt. One institutional address per line; lines starting with # are ignored.
+# Verifying from one of these addresses gives the Καθηγητής role.
+# Source for the Department of Informatics: https://cs.uowm.gr/en/home-page/members-of-the-staff/
+professor.example@uowm.gr

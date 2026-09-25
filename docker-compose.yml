@@ -36,6 +36,7 @@ services:
       SEMESTER_ROLE_IDS: ${SEMESTER_ROLE_IDS:-}
       SEMESTER_ALLOWED_ROLE_IDS: ${SEMESTER_ALLOWED_ROLE_IDS:-}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      AUTH_PROVIDER: ${AUTH_PROVIDER}
       DB_HOST: db
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
@@ -50,11 +51,25 @@ services:
     # Bound to localhost: put a TLS-terminating reverse proxy in front (see README).
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    # Faculty list for the email provider (data/faculty-emails.txt), read-only.
+    volumes:
+      - ./data:/app/data:ro
     environment:
       ORIGIN: ${PUBLIC_BASE_URL}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
       PUBLIC_DISCORD_INVITE: ${PUBLIC_DISCORD_INVITE:-}
       AUTH_PROVIDER: ${AUTH_PROVIDER}
+      ALLOW_INSECURE_DEV: ${ALLOW_INSECURE_DEV:-}
+      EMAIL_TRANSPORT: ${EMAIL_TRANSPORT:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      EMAIL_DOMAIN: ${EMAIL_DOMAIN:-}
+      EMAIL_STUDENT_PATTERN: ${EMAIL_STUDENT_PATTERN:-}
+      FACULTY_EMAILS_FILE: /app/data/faculty-emails.txt
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_SECURE: ${SMTP_SECURE:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}

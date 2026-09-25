@@ -29,6 +29,7 @@ async function createLoginLink(discordUserId, now = Date.now()) {
 // Removes expired and used states; they are only needed for the duration of a login.
 async function purgeOldStates(now = Date.now()) {
     const result = await pool.query("DELETE FROM auth_states WHERE expires_at < ?", [now - 60 * 60 * 1000]);
+    await pool.query("DELETE FROM email_send_log WHERE sent_at < ?", [now - 24 * 60 * 60 * 1000]);
     return result.affectedRows;
 }
 

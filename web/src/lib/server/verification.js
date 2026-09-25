@@ -10,9 +10,9 @@ import { classify } from './affiliation.js';
 import { hashStateToken, hashUniversityId, safeEqual } from './crypto.js';
 import { embedFor } from '../messages.js';
 
-const TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
+export const TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
 
-function stateProblem(state, now) {
+export function stateProblem(state, now) {
     if (!state) return 'invalid_link';
     if (state.usedAt !== null) return 'used';
     if (state.expiresAt <= now) return 'expired';
@@ -60,7 +60,7 @@ export function createVerificationService({ config, repo, provider, discord, now
         }
 
         const result = await verifyAndLink(callbackUrl, token, state);
-        await discord.sendDM(state.discordUserId, embedFor(result.code));
+        await notifyResult(state.discordUserId, result);
         return result;
     }
 
@@ -157,5 +157,10 @@ export function createVerificationService({ config, repo, provider, discord, now
         return [roles.adminRoleId, roles.moderatorRoleId].filter(Boolean).map((id) => `<@&${id}>`).join(' ');
     }
 
-    return { startLogin, completeLogin };
+    // linkAccount and notifyResult are shared with the email code flow (emailVerification.js).
+    async function notifyResult(discordUserId, result) {
+        await discord.sendDM(discordUserId, embedFor(result.code));
+    }
+
+    return { startLogin, completeLogin, linkAccount, notifyResult };
 }

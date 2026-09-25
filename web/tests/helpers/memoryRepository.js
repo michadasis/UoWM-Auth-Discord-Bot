@@ -5,17 +5,33 @@ export function createMemoryRepository() {
     const states = new Map();
     const users = new Map();
     const guests = new Map();
+    const sendLog = [];
 
     return {
         // Test-only: what the bot's /auth command inserts.
         insertState(stateHash, { discordUserId, createdAt, expiresAt }) {
-            states.set(stateHash, { discordUserId, codeVerifier: null, nonce: null, createdAt, expiresAt, usedAt: null });
+            states.set(stateHash, {
+                discordUserId,
+                codeVerifier: null,
+                nonce: null,
+                createdAt,
+                expiresAt,
+                usedAt: null,
+                emailUniIdHash: null,
+                emailAffiliation: null,
+                emailCodeHash: null,
+                emailSentAt: null,
+                emailAttempts: 0,
+            });
         },
         insertGuest(discordUserId, msgId) {
             guests.set(discordUserId, { discordUserId, msgId });
         },
         allUsers() {
             return [...users.values()].map((u) => ({ ...u }));
+        },
+        allStates() {
+            return [...states.values()].map((s) => ({ ...s }));
         },
 
         async getState(stateHash) {
@@ -33,6 +49,27 @@ export function createMemoryRepository() {
             if (!s || s.usedAt !== null || s.expiresAt <= now) return false;
             s.usedAt = now;
             return true;
+        },
+        async setEmailChallenge(stateHash, { uniIdHash, affiliation, codeHash, sentAt }) {
+            const s = states.get(stateHash);
+            if (!s || s.usedAt !== null) return;
+            Object.assign(s, { emailUniIdHash: uniIdHash, emailAffiliation: affiliation, emailCodeHash: codeHash, emailSentAt: sentAt });
+        },
+        async incrementEmailAttempts(stateHash) {
+            const s = states.get(stateHash);
+            if (!s) return 0;
+            s.emailAttempts += 1;
+            return s.emailAttempts;
+        },
+        async countEmailSends({ discordUserId, targetHash, since }) {
+            const recent = sendLog.filter((e) => e.sentAt > since);
+            return {
+                byUser: recent.filter((e) => e.discordUserId === discordUserId).length,
+                byTarget: recent.filter((e) => e.targetHash === targetHash).length,
+            };
+        },
+        async logEmailSend(entry) {
+            sendLog.push({ ...entry });
         },
         async findUserByDiscordId(discordUserId) {
             const u = users.get(discordUserId);

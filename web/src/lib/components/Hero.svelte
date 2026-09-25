@@ -1,5 +1,7 @@
 <script>
 	import { env } from '$env/dynamic/public';
+
+	let { authMode } = $props();
 </script>
 
 <section class="px-6 py-16 font-sans sm:py-32 lg:px-8">
@@ -10,8 +12,12 @@
 		<p class="mt-6 text-xl leading-8 text-skin-base">
 			Ο διακομιστής Discord των φοιτητών και των διδασκόντων του Τμήματος Πληροφορικής του
 			Πανεπιστημίου Δυτικής Μακεδονίας. Για πρόσβαση στα κανάλια, χρησιμοποιήστε την εντολή
-			<code class="rounded bg-skin-accent px-1">/auth</code> στο κανάλι #verify και συνδεθείτε με τον
-			ιδρυματικό σας λογαριασμό στην επίσημη σελίδα του Πανεπιστημίου.
+			<code class="rounded bg-skin-accent px-1">/auth</code> στο κανάλι #verify
+			{#if authMode === 'email'}
+				και επιβεβαιώστε το ιδρυματικό σας email με έναν κωδικό μίας χρήσης.
+			{:else}
+				και συνδεθείτε με τον ιδρυματικό σας λογαριασμό στην επίσημη σελίδα του Πανεπιστημίου.
+			{/if}
 		</p>
 		{#if env.PUBLIC_DISCORD_INVITE}
 			<div class="mt-10">

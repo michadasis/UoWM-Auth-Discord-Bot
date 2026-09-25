@@ -3,6 +3,16 @@ const colors = require("../../lib/colors");
 const { createLoginLink } = require("../../lib/authState");
 const { getVerification } = require("../../lib/verification");
 
+const EMAIL_MODE = process.env.AUTH_PROVIDER === 'email';
+
+const HOW_IT_WORKS = EMAIL_MODE
+    ? 'Πατήστε το κουμπί, γράψτε το όνομα χρήστη του ιδρυματικού σας λογαριασμού (π.χ. cs01234) και θα λάβετε κωδικό μίας χρήσης στο @uowm.gr email σας.'
+    : 'Πατήστε το κουμπί για να συνδεθείτε στην επίσημη σελίδα του Πανεπιστημίου (sso.uowm.gr). Ο κωδικός σας εισάγεται μόνο εκεί, ποτέ στο Discord.';
+
+const FOOTER = EMAIL_MODE
+    ? 'Δεν θα σας ζητηθεί ποτέ ο κωδικός πρόσβασης του ιδρυματικού σας λογαριασμού.'
+    : 'Ελέγξτε ότι η διεύθυνση στον browser είναι https://sso.uowm.gr πριν εισάγετε τον κωδικό σας.';
+
 module.exports = {
     data: {
         name: 'auth',
@@ -28,11 +38,10 @@ module.exports = {
                 .setColor(colors.blue)
                 .setTitle('Επιβεβαίωση με ιδρυματικό λογαριασμό')
                 .setDescription(
-                    'Πατήστε το κουμπί για να συνδεθείτε στην επίσημη σελίδα του Πανεπιστημίου (sso.uowm.gr). ' +
-                    'Ο κωδικός σας εισάγεται μόνο εκεί, ποτέ στο Discord.\n\n' +
+                    `${HOW_IT_WORKS}\n\n` +
                     `Ο σύνδεσμος είναι προσωπικός, χρησιμοποιείται μία φορά και λήγει ${time(expiresAt, TimestampStyles.RelativeTime)}. Μην τον μοιραστείτε με κανέναν.`
                 )
-                .setFooter({ text: 'Ελέγξτε ότι η διεύθυνση στον browser είναι https://sso.uowm.gr πριν εισάγετε τον κωδικό σας.' });
+                .setFooter({ text: FOOTER });
 
             const button = new ButtonBuilder().setLabel('Σύνδεση').setStyle(ButtonStyle.Link).setURL(link.url);
 
