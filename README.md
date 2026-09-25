@@ -237,7 +237,7 @@ IEE bot schema, so start with a fresh volume.
 
 ## Switching to the real UoWM provider
 
-1. Send the registration request in `docs/uowm-registration-request.md` to the UoWM NOC.
+1. Submit the registration request in `docs/uowm-registration-request.md` as a ticket at https://helpdesk.uowm.gr (or email support@uowm.gr).
 2. From the reply, set `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` and, if needed, `OIDC_SCOPES`.
 3. Set `STUDENT_DEPARTMENT_CLAIM` and `STUDENT_DEPARTMENT_PATTERN` to the attribute and value the NOC gives for
    the Department of Informatics. The values in `.env.example` only match the mock users.
