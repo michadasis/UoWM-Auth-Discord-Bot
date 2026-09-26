@@ -6,12 +6,25 @@ const messages = {
     verified_student: {
         tone: 'success',
         title: 'Επιτυχής επιβεβαίωση',
-        text: 'Ο λογαριασμός σας επιβεβαιώθηκε και λάβατε τον ρόλο «Φοιτητής». Μπορείτε πλέον να επιλέξετε τα εξάμηνά σας στο κανάλι #epilogh-eksamhnou.',
+        role: '«Φοιτητής»',
+        text: 'Ο λογαριασμός σας επιβεβαιώθηκε και λάβατε τον ρόλο {role}. Μπορείτε πλέον να επιλέξετε τα εξάμηνά σας στο κανάλι #epilogh-eksamhnou.',
     },
     verified_professor: {
         tone: 'success',
         title: 'Επιτυχής επιβεβαίωση',
-        text: 'Ο λογαριασμός σας επιβεβαιώθηκε και λάβατε τον ρόλο «Καθηγητής».',
+        role: '«Καθηγητής»',
+        text: 'Ο λογαριασμός σας επιβεβαιώθηκε και λάβατε τον ρόλο {role}.',
+    },
+    verified_staff: {
+        tone: 'success',
+        title: 'Επιτυχής επιβεβαίωση',
+        role: '«Προσωπικό»',
+        text: 'Ο λογαριασμός σας επιβεβαιώθηκε και λάβατε τον ρόλο {role}.',
+    },
+    staff_not_enabled: {
+        tone: 'error',
+        title: 'Λογαριασμός προσωπικού',
+        text: 'Οι λογαριασμοί προσωπικού (aff…) δεν επιβεβαιώνονται αυτόματα. Επικοινωνήστε με τους διαχειριστές.',
     },
     discord_verified: {
         tone: 'info',
@@ -97,7 +110,8 @@ const messages = {
 
 function embedFor(result) {
     const msg = messages[result.code] ?? messages.error;
-    let text = msg.text;
+    // Role mention renders the current role name, so renaming the role in Discord needs no code change.
+    let text = msg.text.replace('{role}', result.roleId ? `<@&${result.roleId}>` : msg.role);
     if (result.code === 'wrong_code' && result.attemptsLeft !== undefined) text += ` Απομένουν ${result.attemptsLeft} προσπάθειες.`;
     return { color: colors[msg.tone], title: msg.title, description: text };
 }

@@ -5,7 +5,7 @@ const { loadEmailConfig } = require("../../src/lib/config");
 const { createEmailVerification } = require("../../src/lib/emailVerification");
 const { createLinker } = require("../../src/lib/linker");
 
-const ROLE = { student: "role-student", professor: "role-professor", guest: "role-guest" };
+const ROLE = { student: "role-student", professor: "role-professor", staff: "role-staff", guest: "role-guest" };
 
 function createMemoryRepository() {
     const challenges = new Map();
@@ -111,6 +111,7 @@ function createHarness({ env = {}, members = ["discord-A", "discord-B"], faculty
     const config = loadEmailConfig({
         EMAIL_TRANSPORT: "console",
         UNI_ID_HASH_SECRET: "test-hash-secret-that-is-long-enough-000",
+        STAFF_ROLE_ID: ROLE.staff,
         ...env,
     });
     const repo = createMemoryRepository();
@@ -133,6 +134,7 @@ function createHarness({ env = {}, members = ["discord-A", "discord-B"], faculty
         roles: {
             studentRoleId: ROLE.student,
             professorRoleId: ROLE.professor,
+            staffRoleId: ROLE.staff,
             guestRoleId: ROLE.guest,
             guestChannelId: "chan-guest",
             adminRoleId: "role-admin",

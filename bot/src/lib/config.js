@@ -41,6 +41,9 @@ function loadEmailConfig(env = process.env) {
         domain: (env.EMAIL_DOMAIN || "uowm.gr").toLowerCase(),
         // The first capture group is the student number; uniqueness is keyed on it.
         studentPattern: regex("EMAIL_STUDENT_PATTERN", "^cs(\\d{4,6})$"),
+        // Staff/affiliate accounts (e.g. aff00543): get STAFF_ROLE_ID when it is set, unless on the faculty list.
+        staffPattern: regex("EMAIL_STAFF_PATTERN", "^aff(\\d{3,7})$"),
+        staffEnabled: Boolean((env.STAFF_ROLE_ID || "").trim()),
         // Usernames that look like students of other departments, for a clearer rejection message.
         otherStudentPattern: regex("EMAIL_OTHER_STUDENT_PATTERN", "^[a-z]{2,6}\\d{3,7}$"),
         facultyFile: path.resolve(env.FACULTY_EMAILS_FILE || "data/faculty-emails.txt"),

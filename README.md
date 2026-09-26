@@ -40,10 +40,13 @@ This is an unofficial, student-run service. It is not operated by the University
 2. The bot checks the address:
    - `cs` followed by 4 to 6 digits: Department of Informatics student.
    - an address on the [faculty list](#faculty-list): teaching staff.
+   - `aff` followed by digits (e.g. `aff00543`: staff, contractors, temporary teaching staff): university staff,
+     if `STAFF_ROLE_ID` is set. These accounts are university-wide, so they get their own role instead of Καθηγητής.
    - anything else (other departments such as `psy01234`, other domains, unknown addresses): rejected, no email is sent.
 3. The bot emails a 6-digit code to that address and replies privately with an **Εισαγωγή κωδικού** button.
 4. The member presses the button and types the code, or runs `/code 123456`.
-5. The bot gives the role right away: **Φοιτητής** for students, **Καθηγητής** for faculty, and replies in Greek.
+5. The bot gives the role right away: **Φοιτητής** for students, **Καθηγητής** for faculty, **Προσωπικό** (or whatever
+   you name the `STAFF_ROLE_ID` role) for `aff` accounts, and replies in Greek.
 
 Discord already proves who ran the command; the code proves that person controls the mailbox.
 Nobody is ever asked for their university password.
@@ -88,7 +91,7 @@ Admin commands are hidden from members without Manage Roles and additionally req
    Invite URL (permissions integer 268520448):
    `https://discord.com/oauth2/authorize?client_id=<APPLICATION_ID>&scope=bot+applications.commands&permissions=268520448`
 5. In Server Settings, Roles, drag the bot's role **above** every role it manages: Φοιτητής, Καθηγητής, Guest and
-   all semester roles (Α to Η Εξάμηνο). Discord only lets a bot assign or remove roles below its own highest role.
+   Προσωπικό (if used) and all semester roles (Α to Η Εξάμηνο). Discord only lets a bot assign or remove roles below its own highest role.
    Keep the admin and moderator roles above the bot role.
 6. Enable Developer Mode in Discord (User Settings, Advanced) to copy role and channel IDs into `.env`.
 
@@ -101,6 +104,7 @@ Roles:
 | @everyone | | #verify only |
 | Φοιτητής | bot | general channels, #epilogh-eksamhnou |
 | Καθηγητής | bot | general channels only |
+| Προσωπικό | bot | general channels only (optional, `STAFF_ROLE_ID`) |
 | Guest | moderators | general channels (optionally semesters, see below) |
 | Α to Η Εξάμηνο | Dyno (self-role) | the matching semester/course channels |
 
@@ -109,7 +113,7 @@ Channel permissions:
 | Channel or category | @everyone | Φοιτητής | Καθηγητής | Guest | Semester role |
 |---|---|---|---|---|---|
 | #verify | View, Use Application Commands; deny Send Messages | optional | optional | optional | |
-| General category | deny View | View | View | View | |
+| General category | deny View | View | View (also Προσωπικό) | View | |
 | #epilogh-eksamhnou | deny View | View, Read History, Add Reactions | | optional | |
 | Semester category (one per semester) | deny View | | | | View (only its own) |
 | Admin and guest log channels | deny View | | | | |
@@ -138,6 +142,7 @@ The bot refuses to start with missing or invalid email settings and prints what 
 |---|---|
 | `DISCORD_TOKEN`, `GUILD_ID` | Bot token and server ID. |
 | `STUDENT_ROLE_ID`, `PROFESSOR_ROLE_ID`, `GUEST_ROLE_ID` | Φοιτητής, Καθηγητής, Guest. |
+| `STAFF_ROLE_ID` | Role for `aff` accounts not on the faculty list, e.g. Προσωπικό. Empty: `aff` accounts are rejected. |
 | `ADMIN_ROLE_ID`, `MODERATOR_ROLE_ID` | May run admin commands, pinged on professor verifications and alerts. |
 | `ADMIN_CHANNEL_ID`, `GUEST_CHANNEL_ID` | Private log channels. |
 | `SEMESTER_ROLE_IDS`, `SEMESTER_ALLOWED_ROLE_IDS` | Comma-separated. See [Dyno and semester roles](#dyno-and-semester-roles). |
@@ -148,6 +153,7 @@ The bot refuses to start with missing or invalid email settings and prints what 
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | Outgoing mail server. |
 | `EMAIL_DOMAIN` | Default `uowm.gr`. |
 | `EMAIL_STUDENT_PATTERN` | Regex for student usernames. Default `^cs(\d{4,6})$`. The first group is the student number, used for uniqueness. Keep it in single quotes in `.env`. |
+| `EMAIL_STAFF_PATTERN` | Regex for staff/affiliate usernames. Default `^aff(\d{3,7})$`. |
 | `EMAIL_OTHER_STUDENT_PATTERN` | Usernames that look like students of other departments, for a clearer rejection message. |
 | `FACULTY_EMAILS_FILE` | Faculty list. Set by Compose to `/bot/data/faculty-emails.txt`. |
 | `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | MariaDB. Compose sets `DB_HOST=db`; the root password is random and unused. |
@@ -229,7 +235,7 @@ Stored per verified member, and nothing else:
 |---|---|
 | `discord_user_id` | Discord user ID |
 | `uni_id_hash` | Keyed HMAC-SHA256 of the student number or faculty username, keyed with `UNI_ID_HASH_SECRET` |
-| `affiliation` | student or faculty |
+| `affiliation` | student, faculty or staff |
 | `verified_at` | date of verification |
 
 - Names, email addresses, usernames and student numbers are never stored in plain form, and codes never at all.
@@ -240,12 +246,12 @@ Stored per verified member, and nothing else:
 - `/unverify` deletes the member's row. Leaving the server deletes it automatically.
 - Admin log messages mention only the Discord user and the affiliation.
 
-The Greek notice for #verify is in `docs/verify-channel.md`.
+The Greek notice for #verify is posted by `/post-verify-info` (text in `bot/src/lib/privacyNotice.js`).
 
 ## UoWM single sign-on (future)
 
 UoWM's SSO (sso.uowm.gr) supports OpenID Connect, which would verify affiliation directly instead of by address
-pattern. It needs registration with UoWM IT (`docs/uowm-registration-request.md`, submitted through
+pattern. It needs registration with UoWM IT (a request submitted through
 https://helpdesk.uowm.gr) and a small web service for the login callback. A complete implementation with that web
 service, a mock identity provider and tests is kept at the git tag
 [`sso-web-version`](https://github.com/michadasis/UoWM-Auth-Discord-Bot/tree/sso-web-version) and can be brought back if the registration is approved.

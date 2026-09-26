@@ -18,7 +18,7 @@ async function removeVerification(guild, discordUserId, reason) {
 
     const member = guild ? await guild.members.fetch(discordUserId).catch(() => null) : null;
     if (member) {
-        const verifiedRoles = [process.env.STUDENT_ROLE_ID, process.env.PROFESSOR_ROLE_ID];
+        const verifiedRoles = [process.env.STUDENT_ROLE_ID, process.env.PROFESSOR_ROLE_ID, process.env.STAFF_ROLE_ID].filter(Boolean);
         const remaining = [...member.roles.cache.keys()].filter((id) => !verifiedRoles.includes(id));
         const toRemove = [
             ...verifiedRoles.filter((id) => member.roles.cache.has(id)),
@@ -32,7 +32,7 @@ async function removeVerification(guild, discordUserId, reason) {
 const AFFILIATION_LABELS = {
     student: "Φοιτητής",
     faculty: "Καθηγητής (μέλος ΔΕΠ)",
-    staff: "Προσωπικό (ρόλος Καθηγητής)",
+    staff: "Προσωπικό",
 };
 
 module.exports = { getVerification, removeVerification, AFFILIATION_LABELS };

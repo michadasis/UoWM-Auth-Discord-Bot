@@ -26,6 +26,7 @@ function getVerification(client) {
                 roles: {
                     studentRoleId: process.env.STUDENT_ROLE_ID,
                     professorRoleId: process.env.PROFESSOR_ROLE_ID,
+                    staffRoleId: process.env.STAFF_ROLE_ID,
                     guestRoleId: process.env.GUEST_ROLE_ID,
                     guestChannelId: process.env.GUEST_CHANNEL_ID,
                     adminRoleId: process.env.ADMIN_ROLE_ID,

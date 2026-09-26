@@ -20,8 +20,9 @@ function createLinker({ repo, discord, roles, logger = console }) {
         }
 
         const isStudent = affiliation === 'student';
+        const roleId = { student: roles.studentRoleId, faculty: roles.professorRoleId, staff: roles.staffRoleId }[affiliation];
         try {
-            await discord.addRole(discordUserId, isStudent ? roles.studentRoleId : roles.professorRoleId, 'University email verified');
+            await discord.addRole(discordUserId, roleId, 'University email verified');
         } catch (err) {
             logger.error(`Adding role failed for ${discordUserId}, rolling back: ${err.message}`);
             await repo.deleteUser(discordUserId);
@@ -38,7 +39,8 @@ function createLinker({ repo, discord, roles, logger = console }) {
             allowedMentions: { parse: [], roles: ping },
         });
 
-        return { code: isStudent ? 'verified_student' : 'verified_professor', affiliation };
+        const code = { student: 'verified_student', faculty: 'verified_professor', staff: 'verified_staff' }[affiliation];
+        return { code, affiliation, roleId };
     }
 
     async function clearGuestStatus(discordUserId, member) {

@@ -7,7 +7,7 @@ const { createHarness, ROLE } = require("./helpers/harness");
 const { LIMITS } = require("../src/lib/emailVerification");
 const { parseAddress, classifyAddress, loadFacultyLocals, maskAddress } = require("../src/lib/emailPolicy");
 const { loadEmailConfig } = require("../src/lib/config");
-const { messages } = require("../src/lib/messages");
+const { messages, embedFor } = require("../src/lib/messages");
 
 describe("email code verification", () => {
     let h;
@@ -43,6 +43,29 @@ describe("email code verification", () => {
         assert.deepEqual(h.discord.rolesOf("discord-A"), [ROLE.professor]);
         assert.equal(h.repo.allUsers()[0].affiliation, "faculty");
         assert.match(h.discord.adminMessages.at(-1).content, /<@&role-admin>/);
+    });
+
+    test("staff/affiliate account (aff) not on the faculty list gets the staff role", async () => {
+        const { result } = await h.verify("discord-A", "aff00543@uowm.gr");
+
+        assert.equal(result.code, "verified_staff");
+        assert.equal(result.roleId, ROLE.staff);
+        assert.deepEqual(h.discord.rolesOf("discord-A"), [ROLE.staff]);
+        assert.equal(h.repo.allUsers()[0].affiliation, "staff");
+        assert.match(h.discord.adminMessages.at(-1).content, /<@&role-admin>/);
+        assert.match(embedFor(result).description, /<@&role-staff>/);
+    });
+
+    test("aff account on the faculty list gets the professor role", async () => {
+        const hf = createHarness({ faculty: ["aff00999"] });
+        assert.equal((await hf.verify("discord-A", "aff00999")).result.code, "verified_professor");
+        assert.deepEqual(hf.discord.rolesOf("discord-A"), [ROLE.professor]);
+    });
+
+    test("aff accounts are rejected without email when no staff role is configured", async () => {
+        const hn = createHarness({ env: { STAFF_ROLE_ID: "" } });
+        assert.equal((await hn.service.requestCode("discord-A", "aff00543")).code, "staff_not_enabled");
+        assert.equal(hn.sent.length, 0);
     });
 
     test("outsider (not a student pattern, not on the faculty list) is rejected without email", async () => {
@@ -263,7 +286,7 @@ describe("email policy and config", () => {
     });
 
     test("every result code has a Greek message", () => {
-        const codes = ["verified_student", "verified_professor", "discord_verified", "already_verified", "discord_already_linked",
+        const codes = ["verified_student", "verified_professor", "verified_staff", "staff_not_enabled", "discord_verified", "already_verified", "discord_already_linked",
             "uni_account_in_use", "invalid_address", "wrong_department", "not_eligible", "not_in_guild", "resend_too_soon",
             "rate_limited", "email_send_failed", "wrong_code", "too_many_attempts", "no_pending_code", "expired_code", "error"];
         for (const code of codes) assert.ok(messages[code]?.title && messages[code]?.text, code);

@@ -1,7 +1,7 @@
 // Decides who may verify, and as what, from the institutional address alone.
 //
-// classifyAddress -> { ok: true, local, affiliation: 'student' | 'faculty', identityKey }
-//                 or { ok: false, reason: 'invalid_address' | 'wrong_department' | 'not_eligible' }
+// classifyAddress -> { ok: true, local, affiliation: 'student' | 'faculty' | 'staff', identityKey }
+//                 or { ok: false, reason: 'invalid_address' | 'staff_not_enabled' | 'wrong_department' | 'not_eligible' }
 
 const fs = require("fs/promises");
 
@@ -27,6 +27,13 @@ function classifyAddress(input, config, facultyLocals) {
     if (student) {
         // Keyed on the student number so that aliases of the same account count once.
         return { ok: true, local, affiliation: "student", identityKey: `student:${student[1] ?? local}` };
+    }
+
+    // Staff/affiliate accounts are university-wide, so they get a separate role (not Καθηγητής).
+    const staff = local.match(config.staffPattern);
+    if (staff) {
+        if (!config.staffEnabled) return { ok: false, reason: "staff_not_enabled" };
+        return { ok: true, local, affiliation: "staff", identityKey: `staff:${staff[1] ?? local}` };
     }
 
     if (config.otherStudentPattern.test(local)) return { ok: false, reason: "wrong_department" };
