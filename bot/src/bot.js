@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits } = require("discord.js");
+const { Client, GatewayIntentBits, ActivityType } = require("discord.js");
 const { CommandKit } = require("commandkit");
 const path = require("path");
 const { loadEmailConfig } = require("./lib/config");
@@ -12,6 +12,10 @@ try {
 }
 
 const client = new Client({
+    // Custom status under the bot's name. Set in the client options so it is restored after reconnects.
+    presence: {
+        activities: [{ type: ActivityType.Custom, name: 'status', state: process.env.BOT_STATUS || 'Γράψε /auth για επιβεβαίωση' }],
+    },
     intents: [
         GatewayIntentBits.Guilds,
         // Privileged: needed for role sync on join/leave/role changes. Enable "Server Members Intent" in the developer portal.

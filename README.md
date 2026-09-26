@@ -141,6 +141,7 @@ The bot refuses to start with missing or invalid email settings and prints what 
 | `ADMIN_ROLE_ID`, `MODERATOR_ROLE_ID` | May run admin commands, pinged on professor verifications and alerts. |
 | `ADMIN_CHANNEL_ID`, `GUEST_CHANNEL_ID` | Private log channels. |
 | `SEMESTER_ROLE_IDS`, `SEMESTER_ALLOWED_ROLE_IDS` | Comma-separated. See [Dyno and semester roles](#dyno-and-semester-roles). |
+| `BOT_STATUS` | Custom status under the bot's name. Default `Γράψε /auth για επιβεβαίωση`. |
 | `UNI_ID_HASH_SECRET` | Key for hashing identifiers and codes, 32+ characters. Do not change after launch. |
 | `EMAIL_TRANSPORT` | `smtp`, or `console` to print codes to the bot log instead of sending them (testing only). |
 | `EMAIL_FROM` | Sender, e.g. `"Πληροφορική UoWM Discord <sender@gmail.com>"`. |
