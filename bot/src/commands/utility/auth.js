@@ -6,7 +6,7 @@ const { codeButtonRow } = require("../../lib/codeEntry");
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('auth')
-        .setDescription('Επιβεβαίωση με το ιδρυματικό σας email. Θα λάβετε κωδικό μίας χρήσης.')
+        .setDescription('Επαλήθευση με το ιδρυματικό σας email. Θα λάβετε κωδικό μίας χρήσης.')
         .addStringOption((o) => o
             .setName('email')
             .setDescription('Το ιδρυματικό σας email ή όνομα χρήστη, π.χ. cs01234@uowm.gr')

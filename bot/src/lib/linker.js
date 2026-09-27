@@ -35,7 +35,7 @@ function createLinker({ repo, discord, roles, logger = console }) {
         const ping = isStudent ? [] : adminMentions();
         await discord.adminLog({
             content: ping.map((id) => `<@&${id}>`).join(' ') || undefined,
-            embeds: [{ color: 0x0d86e3, title: 'Νέα επιβεβαίωση', description: `Ο χρήστης <@${discordUserId}> επιβεβαιώθηκε ως ${label}.` }],
+            embeds: [{ color: 0x0d86e3, title: 'Νέα επαλήθευση', description: `Ο χρήστης <@${discordUserId}> επαληθεύτηκε ως ${label}.` }],
             allowedMentions: { parse: [], roles: ping },
         });
 
@@ -65,7 +65,7 @@ function createLinker({ repo, discord, roles, logger = console }) {
             embeds: [{
                 color: 0xed4245,
                 title: 'Προσπάθεια σύνδεσης δεύτερου λογαριασμού',
-                description: `Ο χρήστης <@${attemptingUserId}> προσπάθησε να επιβεβαιωθεί με ιδρυματικό λογαριασμό που είναι ήδη συνδεδεμένος με τον χρήστη <@${ownerUserId}>.`,
+                description: `Ο χρήστης <@${attemptingUserId}> προσπάθησε να επαληθευτεί με ιδρυματικό λογαριασμό που είναι ήδη συνδεδεμένος με τον χρήστη <@${ownerUserId}>.`,
             }],
             allowedMentions: { parse: [], roles: ping },
         });

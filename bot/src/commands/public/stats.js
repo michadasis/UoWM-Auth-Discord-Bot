@@ -24,9 +24,9 @@ module.exports = {
             .setTitle('Στατιστικά')
             .setDescription(
                 `**Διάρκεια λειτουργίας:** \`${days}\` ημέρες, \`${hours}\` ώρες, \`${minutes}\` λεπτά\n\n` +
-                `**Επιβεβαιωμένοι φοιτητές:** \`${count('student')}\`\n` +
-                `**Επιβεβαιωμένοι καθηγητές:** \`${count('faculty')}\`\n` +
-                `**Επιβεβαιωμένο προσωπικό:** \`${count('staff')}\``
+                `**Επαληθευμένοι φοιτητές:** \`${count('student')}\`\n` +
+                `**Επαληθευμένοι καθηγητές:** \`${count('faculty')}\`\n` +
+                `**Επαληθευμένο προσωπικό:** \`${count('staff')}\``
             );
 
         await interaction.reply({ embeds: [statsEmbed], flags: interaction.guild !== null ? MessageFlags.Ephemeral : undefined });

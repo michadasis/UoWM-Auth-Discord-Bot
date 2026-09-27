@@ -18,7 +18,7 @@ function codeButtonRow() {
 function codeModal() {
     return new ModalBuilder()
         .setCustomId(MODAL_ID)
-        .setTitle("Κωδικός επιβεβαίωσης")
+        .setTitle("Κωδικός επαλήθευσης")
         .addComponents(
             new ActionRowBuilder().addComponents(
                 new TextInputBuilder()

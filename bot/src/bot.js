@@ -14,7 +14,7 @@ try {
 const client = new Client({
     // Custom status under the bot's name. Set in the client options so it is restored after reconnects.
     presence: {
-        activities: [{ type: ActivityType.Custom, name: 'status', state: process.env.BOT_STATUS || 'Γράψε /auth για επιβεβαίωση' }],
+        activities: [{ type: ActivityType.Custom, name: 'status', state: process.env.BOT_STATUS || 'Γράψε /auth για επαλήθευση' }],
     },
     intents: [
         GatewayIntentBits.Guilds,

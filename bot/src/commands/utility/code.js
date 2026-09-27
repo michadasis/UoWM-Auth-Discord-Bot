@@ -4,7 +4,7 @@ const { handleCode } = require("../../lib/codeEntry");
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('code')
-        .setDescription('Εισαγωγή του κωδικού επιβεβαίωσης που λάβατε στο email σας.')
+        .setDescription('Εισαγωγή του κωδικού επαλήθευσης που λάβατε στο email σας.')
         .addStringOption((o) => o
             .setName('code')
             .setDescription('Ο εξαψήφιος κωδικός, π.χ. 123456')

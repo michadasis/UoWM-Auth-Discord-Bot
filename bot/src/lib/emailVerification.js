@@ -66,11 +66,11 @@ function createEmailVerification({ config, repo, mailer, loadFacultyLocals, link
         try {
             await mailer.send({
                 to: `${decision.local}@${config.domain}`,
-                subject: `Κωδικός επιβεβαίωσης: ${code}`,
+                subject: `Κωδικός επαλήθευσης: ${code}`,
                 text: [
                     "Καλησπέρα,",
                     "",
-                    `Ο κωδικός επιβεβαίωσης για τον Discord server «Πληροφορική UoWM» είναι: ${code}`,
+                    `Ο κωδικός επαλήθευσης για τον Discord server «Πληροφορική UoWM» είναι: ${code}`,
                     "",
                     "Γράψτε τον στο Discord (κουμπί «Εισαγωγή κωδικού» ή εντολή /code). Ισχύει για 10 λεπτά.",
                     "Αν δεν ζητήσατε εσείς αυτόν τον κωδικό, αγνοήστε αυτό το μήνυμα. Κανείς δεν μπορεί να τον χρησιμοποιήσει χωρίς πρόσβαση στο email σας.",

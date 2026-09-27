@@ -6,7 +6,7 @@ const { getVerification, AFFILIATION_LABELS } = require("../../lib/verification"
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('verify-status')
-        .setDescription('Κατάσταση επιβεβαίωσης ενός μέλους (διαχειριστές).')
+        .setDescription('Κατάσταση επαλήθευσης ενός μέλους (διαχειριστές).')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
         .setContexts(InteractionContextType.Guild)
         .addUserOption((o) => o.setName('user').setDescription('Το μέλος').setRequired(true)),
@@ -26,10 +26,10 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setColor(record ? colors.green : colors.yellow)
-            .setTitle('Κατάσταση επιβεβαίωσης')
+            .setTitle('Κατάσταση επαλήθευσης')
             .addFields(
                 { name: 'Μέλος', value: `<@${target.id}>` },
-                { name: 'Επιβεβαιωμένος', value: record ? 'Ναι' : 'Όχι', inline: true },
+                { name: 'Επαληθευμένος', value: record ? 'Ναι' : 'Όχι', inline: true },
                 { name: 'Ιδιότητα', value: record ? AFFILIATION_LABELS[record.affiliation] : '-', inline: true },
                 { name: 'Ημερομηνία', value: record ? time(new Date(record.verified_at)) : '-', inline: true },
                 { name: 'Guest', value: guestText },

@@ -29,7 +29,7 @@ module.exports = {
 
         const usersResult = await pool.query('SELECT discord_user_id FROM users WHERE discord_user_id = ?', [target.id]);
         if (usersResult.length === 1) {
-            return errorReply(interaction, `Ο χρήστης <@${target.id}> είναι ήδη επιβεβαιωμένος, οπότε δεν χρειάζεται τον ρόλο <@&${process.env.GUEST_ROLE_ID}>.`);
+            return errorReply(interaction, `Ο χρήστης <@${target.id}> είναι ήδη επαληθευμένος, οπότε δεν χρειάζεται τον ρόλο <@&${process.env.GUEST_ROLE_ID}>.`);
         }
 
         const modal = new ModalBuilder({

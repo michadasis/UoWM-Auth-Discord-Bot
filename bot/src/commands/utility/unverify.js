@@ -6,7 +6,7 @@ const { adminLog } = require("../../lib/adminLog");
 module.exports = {
     data: {
         name: 'unverify',
-        description: 'Αποσύνδεση του λογαριασμού σας και διαγραφή των δεδομένων επιβεβαίωσης.',
+        description: 'Αποσύνδεση του λογαριασμού σας και διαγραφή των δεδομένων επαλήθευσης.',
     },
 
     run: async ({ interaction, client }) => {
@@ -19,8 +19,8 @@ module.exports = {
             if (!record) {
                 const embed = new EmbedBuilder()
                     .setColor(colors.yellow)
-                    .setTitle('Δεν βρέθηκε επιβεβαίωση')
-                    .setDescription('Ο λογαριασμός σας δεν είναι επιβεβαιωμένος, οπότε δεν υπάρχουν δεδομένα προς διαγραφή.');
+                    .setTitle('Δεν βρέθηκε επαλήθευση')
+                    .setDescription('Ο λογαριασμός σας δεν είναι επαληθευμένος, οπότε δεν υπάρχουν δεδομένα προς διαγραφή.');
                 return interaction.editReply({ embeds: [embed] });
             }
 
@@ -32,7 +32,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(colors.blue)
                 .setTitle('Ο λογαριασμός σας αποσυνδέθηκε')
-                .setDescription('Τα δεδομένα επιβεβαίωσης διαγράφηκαν και οι σχετικοί ρόλοι αφαιρέθηκαν, μαζί με τους ρόλους εξαμήνων. Μπορείτε να επιβεβαιωθείτε ξανά οποιαδήποτε στιγμή με την εντολή `/auth`.');
+                .setDescription('Τα δεδομένα επαλήθευσης διαγράφηκαν και οι σχετικοί ρόλοι αφαιρέθηκαν, μαζί με τους ρόλους εξαμήνων. Μπορείτε να επαληθευτείτε ξανά οποιαδήποτε στιγμή με την εντολή `/auth`.');
             await interaction.editReply({ embeds: [embed] });
         } catch (error) {
             console.error('/unverify failed:', error);

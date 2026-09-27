@@ -12,7 +12,7 @@ module.exports = async ({ interaction, commandObj }) => {
         const errorEmbed = new EmbedBuilder()
             .setColor(colors.red)
             .setTitle('Σφάλμα εκτέλεσης εντολής')
-            .setDescription('Για αυτήν την εντολή πρέπει να έχετε επιβεβαιώσει τον λογαριασμό σας. Χρησιμοποιήστε την εντολή `/auth`.');
+            .setDescription('Για αυτήν την εντολή πρέπει να έχετε επαληθεύσει τον λογαριασμό σας. Χρησιμοποιήστε την εντολή `/auth`.');
         await interaction.reply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
     } catch (error) {
         console.error(error);
