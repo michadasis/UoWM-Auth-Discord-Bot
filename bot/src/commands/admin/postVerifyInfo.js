@@ -9,8 +9,7 @@ module.exports = {
         .setContexts(InteractionContextType.Guild),
 
     run: async ({ interaction }) => {
-        // Mentions render but ping nobody, so running this again never mass-pings the server.
-        await interaction.channel.send({ content: verifyMessage, allowedMentions: { parse: [] } });
+        await interaction.channel.send({ content: verifyMessage, allowedMentions: { parse: ['everyone', 'roles'] } });
         await interaction.reply({ content: 'Το μήνυμα δημοσιεύτηκε.', flags: MessageFlags.Ephemeral });
     },
 
