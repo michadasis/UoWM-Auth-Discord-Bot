@@ -47,3 +47,19 @@ CREATE TABLE IF NOT EXISTS guests (
     msg_id VARCHAR(20),
     PRIMARY KEY (discord_id)
 );
+
+-- Aggregate message counts for /stats: messages per day (Greek time) and channel.
+-- No authors and no content. Thread messages count towards their parent channel.
+CREATE TABLE IF NOT EXISTS message_counts (
+    day DATE NOT NULL,
+    channel_id VARCHAR(20) NOT NULL,
+    count INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, channel_id)
+);
+
+-- Small internal settings, e.g. when live message counting began.
+CREATE TABLE IF NOT EXISTS bot_meta (
+    meta_key VARCHAR(50) NOT NULL,
+    meta_value VARCHAR(100) NOT NULL,
+    PRIMARY KEY (meta_key)
+);

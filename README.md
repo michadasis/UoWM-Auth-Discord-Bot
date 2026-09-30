@@ -27,6 +27,7 @@ This is an unofficial, student-run service. It is not operated by the University
 - [Configuration](#configuration)
 - [Sending email](#sending-email)
 - [Faculty list](#faculty-list)
+- [Message statistics](#message-statistics)
 - [Running](#running)
 - [Tests](#tests)
 - [Data protection](#data-protection)
@@ -67,10 +68,13 @@ Rules:
 | `/auth email` | everyone | Sends a verification code to the given `@uowm.gr` address. |
 | `/code code` | everyone | Enters the code (same as the button under the `/auth` reply). |
 | `/unverify` | everyone | Deletes your data and removes Φοιτητής/Καθηγητής and semester roles. |
-| `/stats` | everyone | Uptime and number of verified members per affiliation. |
+| `/stats members` | everyone | Verified students, faculty and staff, guests with temporary access, and bot uptime. |
+| `/stats activity [year]` | everyone | Messages in a calendar year (default: the current one), per period and top channels. |
 | `/force-unverify user [reason]` | admins, moderators | Same as `/unverify` for another member, logged. |
 | `/verify-status user` | admins, moderators | Verified or not, affiliation, date, guest status, pending code. |
 | `/post-verify-info` | admins, moderators | Posts the instructions and the privacy notice in the current channel. |
+| `/stats-backfill` | admins | One-off count of the message history from before live counting began. |
+| `/post-verified-stats` | admins, moderators | Posts the `/stats members` numbers in the current channel and keeps the message updated every 5 minutes, also after restarts. Running it again moves the message. |
 | Give Guest Role (user context menu) | admins, moderators | Guest role with a logged reason, e.g. first-year students without an account yet. |
 | Remove Guest Role (user context menu) | admins, moderators | Removes the guest role and its log entry. |
 
@@ -156,6 +160,7 @@ The bot refuses to start with missing or invalid email settings and prints what 
 | `EMAIL_STAFF_PATTERN` | Regex for staff/affiliate usernames. Default `^aff(\d{3,7})$`. |
 | `EMAIL_OTHER_STUDENT_PATTERN` | Usernames that look like students of other departments, for a clearer rejection message. |
 | `FACULTY_EMAILS_FILE` | Faculty list. Set by Compose to `/bot/data/faculty-emails.txt`. |
+| `PERIODS_FILE` | Periods for message statistics. Set by Compose to `/bot/data/periods.json`. |
 | `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | MariaDB. Compose sets `DB_HOST=db`; the root password is random and unused. |
 
 ## Sending email
@@ -182,6 +187,40 @@ One address per line, `#` starts a comment. Source for the department:
 https://cs.uowm.gr/en/home-page/members-of-the-staff/. The file is read on every `/auth`, so edits apply without a
 restart. It is gitignored so staff addresses are not republished in the repository. Staff not on the list can be
 given the role manually.
+
+## Message statistics
+
+The bot counts messages per day (Greek time) and channel, for `/stats activity`. It stores only the counts: no authors and no
+content, and it does not read message content at all. Bots, webhooks (such as the exam schedule watcher) and system
+messages are not counted, and thread messages count towards their parent channel.
+
+Periods are defined in `data/periods.json` and applied when `/stats activity` runs, so fixing a date re-buckets the existing
+counts:
+
+```sh
+cp data/periods.example.json data/periods.json
+```
+
+Each entry has a `name` and one of the following, all inclusive:
+
+| Form | Example | Meaning |
+|---|---|---|
+| `"start"`, `"end"` as `MM-DD` | `"start": "09-28", "end": "01-08"` | Repeats every year. An end before the start runs into the next year. The academic year is added to the name, e.g. `Χειμερινό εξάμηνο 2026-2027`. |
+| `"easter": { "from", "to" }` | `"easter": { "from": -6, "to": 7 }` | Days relative to Orthodox Easter Sunday, every year. Easter moves by up to five weeks, so fixed dates would be wrong. |
+| `"start"`, `"end"` as `YYYY-MM-DD` | `"start": "2026-11-02", "end": "2026-11-06"` | A one-off period, name used as is. |
+
+The example file follows the department's academic calendar (winter 2026-2027, spring 2025-2026), which stays
+roughly the same every year, so the file rarely needs edits. Academic years run from September: a period starting in
+September or later belongs to that year and the next, anything earlier to the previous year and that one. Periods
+may overlap: a day inside both the winter semester and the Christmas break counts as Christmas, the period that
+started last. In `/stats activity` every day counts towards exactly one period, so the per-period numbers add up to
+the year's total; days outside every period are listed as Εκτός περιόδων. The file is read on every `/stats activity`, so edits apply without a restart.
+
+Live counting starts the first time the bot runs with this feature. To include older messages, an admin runs
+`/stats-backfill` once. It reads every channel and public thread the bot can see, counts the messages from before
+live counting began, and writes the result in one transaction, so an interrupted run saves nothing and can be run
+again. It refuses to run a second time after it has completed, to avoid double counting. The bot needs View Channel
+and Read Message History in the channels it should count. Messages sent while the bot was offline are not counted.
 
 ## Running
 
@@ -245,6 +284,7 @@ Stored per verified member, and nothing else:
   and is purged after 24 hours.
 - `/unverify` deletes the member's row. Leaving the server deletes it automatically.
 - Admin log messages mention only the Discord user and the affiliation.
+- `message_counts` holds only the number of messages per day and channel, with no link to any member.
 
 The Greek notice for #verify is posted by `/post-verify-info` (text in `bot/src/lib/privacyNotice.js`).
 

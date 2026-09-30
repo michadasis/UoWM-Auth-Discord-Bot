@@ -46,6 +46,7 @@ services:
       EMAIL_DOMAIN: ${EMAIL_DOMAIN:-}
       EMAIL_STUDENT_PATTERN: ${EMAIL_STUDENT_PATTERN:-}
       FACULTY_EMAILS_FILE: /bot/data/faculty-emails.txt
+      PERIODS_FILE: /bot/data/periods.json
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-}
       SMTP_SECURE: ${SMTP_SECURE:-}

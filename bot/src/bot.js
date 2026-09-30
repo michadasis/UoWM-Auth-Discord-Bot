@@ -20,6 +20,8 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         // Privileged: needed for role sync on join/leave/role changes. Enable "Server Members Intent" in the developer portal.
         GatewayIntentBits.GuildMembers,
+        // Message counts for /stats. Not privileged: the bot never reads message content.
+        GatewayIntentBits.GuildMessages,
     ],
 });
 
