@@ -72,7 +72,7 @@ Rules:
 | `/stats activity [year] [channel]` | everyone | Messages in a calendar year (default: the current one), per period and top channels, with a chart of messages per day. With `channel`, only that channel (a thread counts as its parent). Members only see numbers for channels they can view; hidden channels are left out of the top channels. A Λήψη CSV button under the reply sends a CSV with one row per day (date, period, messages). |
 | `/force-unverify user [reason]` | admins, moderators | Same as `/unverify` for another member, logged. |
 | `/verify-status user` | admins, moderators | Verified or not, affiliation, date, guest status, pending code. |
-| `/post-verify-info` | admins, moderators | Posts the instructions and the privacy notice in the current channel. |
+| `/post-verify-info` | admins, moderators | Posts the instructions and the privacy notice in the current channel, pinging everyone and the roles. The bot remembers the message and edits it within a minute whenever `privacyNotice.js` changes, also after restarts; edits ping no one. Running it again moves the message. |
 | `/stats-backfill` | admins | One-off count of the message history from before live counting began. |
 | `/post-verified-stats` | admins, moderators | Posts the `/stats members` numbers in the current channel and keeps the message updated every 5 minutes, also after restarts. Running it again moves the message. |
 | Give Guest Role (user context menu) | admins, moderators | Guest role with a logged reason, e.g. first-year students without an account yet. |

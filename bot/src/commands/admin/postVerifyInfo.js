@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, InteractionContextType, MessageFlags } = require("discord.js");
-const { verifyMessage } = require("../../lib/privacyNotice");
+const { post } = require("../../lib/verifyInfoMessage");
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -8,9 +8,15 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
         .setContexts(InteractionContextType.Guild),
 
-    run: async ({ interaction }) => {
-        await interaction.channel.send({ content: verifyMessage, allowedMentions: { parse: ['everyone', 'roles'] } });
-        await interaction.reply({ content: 'Το μήνυμα δημοσιεύτηκε.', flags: MessageFlags.Ephemeral });
+    run: async ({ interaction, client }) => {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        try {
+            await post(client, interaction.channel);
+            await interaction.editReply({ content: 'Το μήνυμα δημοσιεύτηκε και θα ενημερώνεται αυτόματα όταν αλλάζει το privacyNotice.js. Αν υπήρχε προηγούμενο, διαγράφηκε.' });
+        } catch (err) {
+            console.error('/post-verify-info failed:', err);
+            await interaction.editReply({ content: 'Δεν ήταν δυνατή η δημοσίευση. Ελέγξτε ότι το bot μπορεί να στέλνει μηνύματα σε αυτό το κανάλι.' });
+        }
     },
 
     options: { modOnly: true },
