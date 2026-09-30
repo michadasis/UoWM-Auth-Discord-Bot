@@ -53,6 +53,9 @@ select, input[type=text] { width:100%; background:var(--bg); color:var(--text); 
 @media (max-width:640px) { .field { grid-template-columns:1fr; } }
 `;
 
+// Changes whenever the CSS changes, so browsers never keep an old cached stylesheet.
+const CSS_VERSION = require("crypto").createHash("sha256").update(CSS).digest("hex").slice(0, 10);
+
 const dots = '<span class="dots"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i></span>';
 
 function layout(title, body) {
@@ -63,7 +66,7 @@ function layout(title, body) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>${escapeHtml(title)} · Πληροφορική UoWM</title>
-<link rel="stylesheet" href="/panel.css">
+<link rel="stylesheet" href="/panel.css?v=${CSS_VERSION}">
 </head>
 <body>${body}</body>
 </html>`;
