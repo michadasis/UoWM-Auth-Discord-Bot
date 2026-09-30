@@ -8,6 +8,11 @@ const pages = require("./pages");
 const session = require("./session");
 const oauth = require("./discordOAuth");
 const access = require("./access");
+const settings = require("../lib/settings");
+const { guildOptions, readSettingsForm } = require("./settingsForm");
+const { EmbedBuilder } = require("discord.js");
+const colors = require("../lib/colors");
+const { adminLog } = require("../lib/adminLog");
 
 const SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; style-src 'self'; img-src 'self' https://cdn.discordapp.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
@@ -75,6 +80,11 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
     const redirectUri = `${origin}/auth/callback`;
     const loginLimit = rateLimiter(20, 10 * 60 * 1000);
     const guild = () => client.guilds.fetch(config.guildId);
+    // Read live, so a role changed in the settings applies to panel access right away.
+    const staffRoles = () => ({
+        adminRoleId: process.env.ADMIN_ROLE_ID || config.adminRoleId,
+        moderatorRoleId: process.env.MODERATOR_ROLE_ID || config.moderatorRoleId,
+    });
 
     // The logged-in panel user, or null. Also re-checks the role on every request.
     async function currentUser(req) {
@@ -82,7 +92,7 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
         const data = session.verify(config.sessionSecret, cookies[session.SESSION_COOKIE]);
         if (!data) return { state: "anonymous" };
         const member = await access.fetchMember(await guild(), data.uid);
-        if (!access.canUsePanel(member, config)) return { state: "forbidden" };
+        if (!access.canUsePanel(member, staffRoles())) return { state: "forbidden" };
         return { state: "ok", member, csrf: data.csrf };
     }
 
@@ -103,6 +113,30 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
             ping: Math.round(client.ws.ping),
             onlineSince: since.toLocaleString("el-GR", { timeZone: "Europe/Athens", dateStyle: "short", timeStyle: "short" }),
         };
+    }
+
+    // Runs page(who) for logged-in panel users; otherwise login or 403.
+    async function withUser(req, res, page) {
+        const who = await currentUser(req);
+        if (who.state === "anonymous") return redirect(res, "/login");
+        if (who.state === "forbidden") return send(res, 403, pages.forbiddenPage(), { "Set-Cookie": [session.clearCookie(session.SESSION_COOKIE)] });
+        const u = who.member.user;
+        return page({ ...who, user: { id: u.id, username: u.username, globalName: u.globalName, avatar: u.avatar } });
+    }
+
+    async function renderSettings(res, who, extra = {}, status = 200) {
+        const g = await guild();
+        await g.roles.fetch();
+        await g.channels.fetch();
+        return send(res, status, pages.settingsPage({ user: who.user, csrf: who.csrf, settings: await settings.listSettings(pool), ...guildOptions(g), ...extra }));
+    }
+
+    function describeValue(g, def, value) {
+        if (value === null || value === undefined || value === "") return "κενό";
+        if (def.type === "role") return `<@&${value}>`;
+        if (def.type === "roles") return value.split(",").map((id) => `<@&${id}>`).join(" ");
+        if (def.type === "channel") return `<#${value}>`;
+        return "`" + value.replace(/`/g, "'") + "`";
     }
 
     const routes = {
@@ -137,7 +171,7 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
             const user = await fetchUser({ clientId: config.clientId, clientSecret: config.clientSecret, redirectUri, code });
             access.forget(user.id);
             const member = await access.fetchMember(await guild(), user.id);
-            if (!access.canUsePanel(member, config)) {
+            if (!access.canUsePanel(member, staffRoles())) {
                 console.log(`Panel: refused login for ${user.id}`);
                 return send(res, 403, pages.forbiddenPage(), { "Set-Cookie": [clearState] });
             }
@@ -157,17 +191,40 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
             return redirect(res, "/login", [session.clearCookie(session.SESSION_COOKIE)]);
         },
 
-        "GET /": async (req, res) => {
-            const who = await currentUser(req);
-            if (who.state === "anonymous") return redirect(res, "/login");
-            if (who.state === "forbidden") return send(res, 403, pages.forbiddenPage(), { "Set-Cookie": [session.clearCookie(session.SESSION_COOKIE)] });
-            const u = who.member.user;
-            return send(res, 200, pages.dashboardPage({
-                user: { id: u.id, username: u.username, globalName: u.globalName, avatar: u.avatar },
-                csrf: who.csrf,
-                info: await overview(),
-            }));
-        },
+        "GET /": async (req, res) => withUser(req, res, async (who) =>
+            send(res, 200, pages.dashboardPage({ user: who.user, csrf: who.csrf, info: await overview() }))),
+
+        "GET /settings": async (req, res, ip, url) => withUser(req, res, (who) =>
+            renderSettings(res, who, { saved: url.searchParams.get("saved") === "1" })),
+
+        "POST /settings": async (req, res) => withUser(req, res, async (who) => {
+            const form = await readForm(req, 32 * 1024);
+            if (!sameOrigin(req, origin) || !session.safeEqual(form.get("csrf") || "", who.csrf)) {
+                return send(res, 403, pages.messagePage("Μη έγκυρο αίτημα", "Ανανεώστε τη σελίδα και δοκιμάστε ξανά.", '<a class="button ghost" href="/settings">Ρυθμίσεις</a>'));
+            }
+            const g = await guild();
+            await g.roles.fetch();
+            await g.channels.fetch();
+            const current = await settings.listSettings(pool);
+            const { changes, errors } = readSettingsForm(form, current, g);
+            if (errors.length) return renderSettings(res, who, { errors }, 400);
+
+            for (const change of changes) await settings.setSetting(pool, change.key, change.value, who.user.id);
+            if (changes.length) {
+                const byKey = new Map(current.map((s) => [s.key, s]));
+                const lines = changes.map((c) => {
+                    const def = byKey.get(c.key);
+                    const after = c.value === null ? `${describeValue(g, def, def.envValue)} (από .env)` : describeValue(g, def, c.value);
+                    return `**${def.label}:** ${describeValue(g, def, def.value)} → ${after}`;
+                });
+                console.log(`Panel: ${who.user.id} changed ${changes.map((c) => c.key).join(", ")}`);
+                await adminLog(client, new EmbedBuilder()
+                    .setColor(colors.blue)
+                    .setTitle("Αλλαγή ρυθμίσεων από τον πίνακα")
+                    .setDescription([`**Από:** <@${who.user.id}>`, "", ...lines].join("\n")));
+            }
+            return redirect(res, "/settings?saved=1");
+        }),
     };
 
     return async (req, res) => {

@@ -232,8 +232,8 @@ and Read Message History in the channels it should count. Messages sent while th
 ## Admin panel
 
 An optional web panel runs inside the bot process on its own HTTPS port, sharing the Discord client
-and the database. It is off unless `PANEL_PORT` is set. Phase 1 covers login and an overview page;
-settings, texts and statistics follow.
+and the database. It is off unless `PANEL_PORT` is set. Phases 1 and 2 cover login, an overview page and
+the settings; texts and statistics follow.
 
 - **Login:** "Login with Discord" (OAuth2, scope `identify` only). Only the server owner, members
   with Administrator, and members with the Admin or Moderator role get in. The role is checked
@@ -242,6 +242,13 @@ settings, texts and statistics follow.
   OAuth `state` is bound to a separate short-lived signed cookie.
 - **Protection:** CSRF token plus same-origin check on every POST, strict Content-Security-Policy,
   HSTS, no framing, `no-store` caching, and a rate limit on the login routes.
+- **Settings (phase 2):** roles (Φοιτητής, Καθηγητής, Προσωπικό, Προσωρινή άδεια, Admin, Moderator),
+  semester roles, log channels and the bot status, picked from the live server. A saved value is
+  stored in the `settings` table and overrides `.env`; it applies at once, without a restart, and
+  "Επαναφορά στην τιμή του .env" removes the override. The form refuses `@everyone`, bot-managed
+  roles, roles above the bot that it has to assign, and channels where the bot cannot post; one
+  invalid field saves nothing. Every change is written to the admin log with who made it. Secrets
+  stay in `.env` only.
 - **TLS:** the bot serves HTTPS itself with `PANEL_CERT_FILE` and `PANEL_KEY_FILE` (certificate with
   its chain, and key). It reloads them within an hour when the files change, so a renewed
   certificate needs no restart.

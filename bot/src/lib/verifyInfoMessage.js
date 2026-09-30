@@ -16,6 +16,9 @@ const UNKNOWN_CHANNEL = 10003;
 
 let loadedMtime = -1;
 
+// The text includes role mentions from the settings: re-read it after a panel change.
+require("./settings").onChange(() => { loadedMtime = -1; });
+
 // The current text of privacyNotice.js, re-read from disk when the file has changed.
 function currentText() {
     const mtime = fs.statSync(NOTICE_FILE).mtimeMs;

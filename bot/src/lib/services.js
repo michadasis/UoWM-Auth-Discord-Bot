@@ -11,6 +11,9 @@ const { createEmailVerification } = require("./emailVerification");
 
 let verification;
 
+// Role and channel IDs are read when the service is built, so rebuild it after a panel change.
+require("./settings").onChange(() => { verification = null; });
+
 function getVerification(client) {
     if (!verification) {
         const config = loadEmailConfig();

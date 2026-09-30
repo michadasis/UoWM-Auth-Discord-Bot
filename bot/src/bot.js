@@ -2,6 +2,8 @@ const { Client, GatewayIntentBits, ActivityType } = require("discord.js");
 const { CommandKit } = require("commandkit");
 const path = require("path");
 const { loadEmailConfig } = require("./lib/config");
+const settings = require("./lib/settings");
+const pool = require("./lib/database");
 
 // Fail fast on missing or invalid email settings instead of at the first /auth.
 try {
@@ -11,11 +13,13 @@ try {
     process.exit(1);
 }
 
+function presence() {
+    return { activities: [{ type: ActivityType.Custom, name: 'status', state: process.env.BOT_STATUS || 'Γράψε /auth για επαλήθευση' }] };
+}
+
 const client = new Client({
     // Custom status under the bot's name. Set in the client options so it is restored after reconnects.
-    presence: {
-        activities: [{ type: ActivityType.Custom, name: 'status', state: process.env.BOT_STATUS || 'Γράψε /auth για επαλήθευση' }],
-    },
+    presence: presence(),
     intents: [
         GatewayIntentBits.Guilds,
         // Privileged: needed for role sync on join/leave/role changes. Enable "Server Members Intent" in the developer portal.
@@ -23,6 +27,12 @@ const client = new Client({
         // Message counts for /stats. Not privileged: the bot never reads message content.
         GatewayIntentBits.GuildMessages,
     ],
+});
+
+settings.onChange((key) => {
+    if (key !== 'BOT_STATUS') return;
+    client.options.presence = presence();
+    client.user?.setPresence(presence());
 });
 
 // discord.js renamed "ready" to "clientReady"; CommandKit 0.1.x still listens to "ready" internally
@@ -52,5 +62,13 @@ const commandKit = new CommandKit({
         await new Promise((resolve) => setTimeout(resolve, 50));
     }
     if (!commandKit.commands.length) console.error('CommandKit did not load any commands within 30 seconds, logging in anyway.');
+
+    // Settings changed in the admin panel override .env. Load them before anything uses them.
+    try {
+        await settings.applyStored(pool);
+        client.options.presence = presence();
+    } catch (err) {
+        console.error(`Loading panel settings failed, using .env only: ${err.message}`);
+    }
     client.login(process.env.DISCORD_TOKEN);
 })();
