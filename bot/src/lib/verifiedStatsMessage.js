@@ -66,4 +66,4 @@ async function startRefreshing(client) {
     setInterval(() => refresh(client).catch((err) => console.error("Live stats refresh failed:", err)), REFRESH_MS).unref();
 }
 
-module.exports = { post, refresh, startRefreshing };
+module.exports = { post, refresh, startRefreshing, location };

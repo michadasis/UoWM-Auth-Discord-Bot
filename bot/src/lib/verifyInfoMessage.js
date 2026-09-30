@@ -6,6 +6,7 @@
 const fs = require("fs");
 const pool = require("./database");
 const { ensureSchema, getMeta, setMeta } = require("./messageStats");
+const liveStats = require("./verifiedStatsMessage");
 
 const NOTICE_FILE = require.resolve("./privacyNotice");
 const META_KEY = "verify_info_message";
@@ -54,7 +55,8 @@ async function sync(client) {
 }
 
 // Posts the text in channel (pinging everyone and the roles), remembers it and deletes the
-// previous one, if any.
+// previous one, if any. If the live stats message of /post-verified-stats is in the same channel,
+// it is posted again right after, so it stays below the instructions.
 async function post(client, channel) {
     const previous = await location();
     const message = await channel.send({ content: currentText(), allowedMentions: { parse: ["everyone", "roles"] } });
@@ -67,6 +69,11 @@ async function post(client, channel) {
         } catch {
             // Already gone.
         }
+    }
+
+    const stats = await liveStats.location().catch(() => null);
+    if (stats && stats.channelId === channel.id) {
+        await liveStats.post(client, channel).catch((err) => console.error(`Moving live stats below the verify info failed: ${err.message}`));
     }
     return message;
 }
