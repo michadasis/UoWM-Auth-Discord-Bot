@@ -107,3 +107,23 @@ test("chart renders to a PNG with the bundled font", () => {
     const png = renderPng(buildActivitySvg({ year: 2026, days: [{ day: "2026-03-01", count: 12 }], periods, today: "2026-09-30" }));
     assert.equal(png.subarray(1, 4).toString(), "PNG");
 });
+
+test("CSV has a row per day from the first counted day, zeros for quiet days", () => {
+    const { buildActivityCsv, csvField } = require("../src/lib/activityCsv");
+    const periods = expandPeriods(parsePeriods(YEARLY), 2025, 2026);
+    const csv = buildActivityCsv({
+        days: [{ day: "2026-12-22", count: 5 }, { day: "2026-12-24", count: 2 }],
+        periods,
+        lastDay: "2026-12-25",
+        outsideName: "Εκτός περιόδων",
+    });
+    assert.ok(csv.startsWith("\uFEFF"));
+    assert.deepEqual(csv.slice(1).trim().split("\r\n"), [
+        "Ημερομηνία,Περίοδος,Μηνύματα",
+        "2026-12-22,Χειμερινό εξάμηνο 2026-2027,5",
+        "2026-12-23,Χειμερινό εξάμηνο 2026-2027,0",
+        "2026-12-24,Διακοπές Χριστουγέννων 2026-2027,2",
+        "2026-12-25,Διακοπές Χριστουγέννων 2026-2027,0",
+    ]);
+    assert.equal(csvField('Εξεταστική, "Ιούνιος"'), '"Εξεταστική, ""Ιούνιος"""');
+});

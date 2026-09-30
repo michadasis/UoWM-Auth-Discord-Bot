@@ -1,13 +1,10 @@
-const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder, MessageFlags, ChannelType, PermissionFlagsBits } = require("discord.js");
-const path = require("path");
+const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, ChannelType } = require("discord.js");
 const pool = require("../../lib/database");
 const colors = require("../../lib/colors");
 const { membersEmbed } = require("../../lib/memberStats");
 const { buildActivitySvg, renderPng } = require("../../lib/activityChart");
-const { dayKey, loadPeriodEntries, expandPeriods, dailyTotals, totalsByPeriod, topChannels, getMeta, formatDay } = require("../../lib/messageStats");
-
-const PERIODS_FILE = path.resolve(process.env.PERIODS_FILE || "data/periods.json");
-const OUTSIDE_PERIODS = "Εκτός περιόδων";
+const { dayKey, dailyTotals, totalsByPeriod, topChannels, getMeta, formatDay } = require("../../lib/messageStats");
+const { OUTSIDE_PERIODS, canView, periodsForYear } = require("../../lib/activityData");
 
 // Day and month only, for ranges inside the year the embed is about.
 const shortDay = (day) => formatDay(day).replace(/\/\d{4}$/, '');
@@ -23,15 +20,6 @@ const COUNTED_CHANNEL_TYPES = [
     ChannelType.PublicThread,
     ChannelType.AnnouncementThread,
 ];
-
-// Whoever asks only sees numbers for channels they can see themselves. In DMs there is no member,
-// so only channels visible to everyone count.
-async function canView(guild, member, channelId) {
-    const channel = guild.channels.cache.get(channelId) || await guild.channels.fetch(channelId).catch(() => null);
-    if (!channel) return false;
-    const permissions = member ? channel.permissionsFor(member) : channel.permissionsFor(guild.roles.everyone);
-    return permissions?.has(PermissionFlagsBits.ViewChannel) ?? false;
-}
 
 const notice = (title, description) => ({ embeds: [new EmbedBuilder().setColor(colors.yellow).setTitle(title).setDescription(description)] });
 
@@ -73,12 +61,7 @@ async function activityReply(client, member, requestedYear, requestedChannel) {
             (backfilled ? '' : ' Τα παλιά μηνύματα μετριούνται όταν ένας διαχειριστής τρέξει το `/stats-backfill`.'));
     }
 
-    let periods = [];
-    try {
-        periods = expandPeriods(await loadPeriodEntries(PERIODS_FILE), year - 1, year);
-    } catch (err) {
-        console.error(`Reading periods file failed: ${err.message}`);
-    }
+    const periods = await periodsForYear(year);
 
     const total = days.reduce((sum, d) => sum + d.count, 0);
     const lines = [];
@@ -116,14 +99,20 @@ async function activityReply(client, member, requestedYear, requestedChannel) {
     const title = channelId ? `Δραστηριότητα ${year} · #${guild.channels.cache.get(channelId)?.name ?? 'κανάλι'}` : `Δραστηριότητα ${year}`;
     const embed = new EmbedBuilder().setColor(colors.blue).setTitle(title).setDescription(lines.join('\n'));
 
+    // The button carries year and channel; the handler checks access again before sending the file.
+    const components = [new ActionRowBuilder().addComponents(new ButtonBuilder()
+        .setCustomId(`stats-csv:${year}:${channelId ?? 'all'}`)
+        .setLabel('Λήψη CSV')
+        .setStyle(ButtonStyle.Secondary))];
+
     // The chart is a bonus: if it cannot be drawn, the numbers are still sent.
     try {
         const name = channelId ? `activity-${year}-${channelId}.png` : `activity-${year}.png`;
         const png = renderPng(buildActivitySvg({ year, days, periods, today }));
-        return { embeds: [embed.setImage(`attachment://${name}`)], files: [new AttachmentBuilder(png, { name })] };
+        return { embeds: [embed.setImage(`attachment://${name}`)], files: [new AttachmentBuilder(png, { name })], components };
     } catch (err) {
         console.error(`Drawing activity chart failed: ${err.message}`);
-        return { embeds: [embed] };
+        return { embeds: [embed], components };
     }
 }
 
