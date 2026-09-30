@@ -157,11 +157,12 @@ function periodFor(periods, day) {
 }
 
 // Messages per day between two days, [{ day: "YYYY-MM-DD", count }] in date order.
-async function dailyTotals(pool, start, end) {
+// With channelId, only that channel (threads are counted under their parent).
+async function dailyTotals(pool, start, end, channelId = null) {
     const rows = await pool.query(
         `SELECT DATE_FORMAT(day, '%Y-%m-%d') AS d, SUM(count) AS n FROM message_counts
-         WHERE day BETWEEN ? AND ? GROUP BY day ORDER BY day`,
-        [start, end],
+         WHERE day BETWEEN ? AND ?${channelId ? ' AND channel_id = ?' : ''} GROUP BY day ORDER BY day`,
+        channelId ? [start, end, channelId] : [start, end],
     );
     return rows.map((r) => ({ day: r.d, count: Number(r.n) }));
 }

@@ -69,7 +69,7 @@ Rules:
 | `/code code` | everyone | Enters the code (same as the button under the `/auth` reply). |
 | `/unverify` | everyone | Deletes your data and removes Φοιτητής/Καθηγητής and semester roles. |
 | `/stats members` | everyone | Verified students, faculty and staff, guests with temporary access, and bot uptime. |
-| `/stats activity [year]` | everyone | Messages in a calendar year (default: the current one), per period and top channels, with a chart of messages per day. |
+| `/stats activity [year] [channel]` | everyone | Messages in a calendar year (default: the current one), per period and top channels, with a chart of messages per day. With `channel`, only that channel (a thread counts as its parent). Members only see numbers for channels they can view; hidden channels are left out of the top channels. |
 | `/force-unverify user [reason]` | admins, moderators | Same as `/unverify` for another member, logged. |
 | `/verify-status user` | admins, moderators | Verified or not, affiliation, date, guest status, pending code. |
 | `/post-verify-info` | admins, moderators | Posts the instructions and the privacy notice in the current channel. |
