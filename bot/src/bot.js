@@ -33,7 +33,7 @@ for (const method of ['on', 'once']) {
     client[method] = (event, listener) => original(event === 'ready' ? 'clientReady' : event, listener);
 }
 
-new CommandKit({
+const commandKit = new CommandKit({
     client,
     commandsPath: path.join(__dirname, 'commands'),
     eventsPath: path.join(__dirname, 'events'),
@@ -42,4 +42,15 @@ new CommandKit({
     bulkRegister: true,
 });
 
-client.login(process.env.DISCORD_TOKEN);
+// CommandKit loads events and commands asynchronously and only then waits for the first "ready"
+// to register the slash commands with Discord. If the bot logs in before that, "ready" can fire
+// first and the commands are never registered, so new or changed commands do not show up.
+// Log in only once CommandKit has loaded the commands.
+(async () => {
+    const deadline = Date.now() + 30_000;
+    while (!commandKit.commands.length && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    if (!commandKit.commands.length) console.error('CommandKit did not load any commands within 30 seconds, logging in anyway.');
+    client.login(process.env.DISCORD_TOKEN);
+})();
