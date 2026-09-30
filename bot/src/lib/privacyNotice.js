@@ -4,7 +4,6 @@
 const roleRef = (id, fallback) => (id ? `<@&${id}>` : `«${fallback}»`);
 
 const SEMESTER_CHANNEL_ID = '1504992218027659436'; // #epilogh-eksamhnou
-const OPEN_CHAT_CHANNEL_ID = '1553119673300811917'; // #ανοιχτό-chat
 
 const verifyMessage = [
     '## Καλώς ήρθατε στον server της Πληροφορικής UoWM',
@@ -26,7 +25,7 @@ const verifyMessage = [
     '',
     `Για οποιοδήποτε πρόβλημα, επικοινωνήστε με κάποιον ${roleRef(process.env.ADMIN_ROLE_ID, 'Admin')} ή ${roleRef(process.env.MODERATOR_ROLE_ID, 'Moderator')} .`,
     '',
-    `### Εάν δεν έχετε ακαδημαικό email ακόμα(λόγω μεταγραφής ή για κάποιον άλλο λόγο), επικοινωνίστε μαζί μας στο <#${OPEN_CHAT_CHANNEL_ID}> , να σας δώσουμε προσωρινή άδεια.`,
+    `### Εάν δεν έχετε ακαδημαικό email ακόμα(λόγω μεταγραφής ή για κάποιον άλλο λόγο), επικοινωνίστε μαζί μας, να σας δώσουμε προσωρινή άδεια.`,
     '@everyone',
 ].join('\n');
 
