@@ -5,13 +5,11 @@ const { EmbedBuilder } = require("discord.js");
 const pool = require("./database");
 const colors = require("./colors");
 
-function uptimeText(client) {
-    let seconds = client.uptime / 1000;
-    const days = Math.floor(seconds / 86400);
-    seconds %= 86400;
-    const hours = Math.floor(seconds / 3600);
-    seconds %= 3600;
-    return `${days} ημέρες, ${hours} ώρες, ${Math.floor(seconds / 60)} λεπτά`;
+// Discord timestamp of when the bot came online. The client renders it in the reader's own
+// time zone and language, and the relative part ("πριν από 3 ώρες") keeps updating by itself.
+function onlineSince(client) {
+    const since = Math.floor((client.readyTimestamp ?? Date.now() - (client.uptime ?? 0)) / 1000);
+    return `<t:${since}:f> (<t:${since}:R>)`;
 }
 
 async function membersEmbed(client) {
@@ -31,8 +29,8 @@ async function membersEmbed(client) {
             '',
             `**Σύνολο επαληθευμένων:** \`${verified}\``,
             '',
-            `-# Διάρκεια λειτουργίας bot: ${uptimeText(client)}`,
+            `-# Bot σε λειτουργία από ${onlineSince(client)}`,
         ].join('\n'));
 }
 
-module.exports = { uptimeText, membersEmbed };
+module.exports = { onlineSince, membersEmbed };
