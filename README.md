@@ -28,6 +28,7 @@ This is an unofficial, student-run service. It is not operated by the University
 - [Sending email](#sending-email)
 - [Faculty list](#faculty-list)
 - [Message statistics](#message-statistics)
+- [Admin panel](#admin-panel)
 - [Running](#running)
 - [Tests](#tests)
 - [Data protection](#data-protection)
@@ -227,6 +228,31 @@ Live counting starts the first time the bot runs with this feature. To include o
 live counting began, and writes the result in one transaction, so an interrupted run saves nothing and can be run
 again. It refuses to run a second time after it has completed, to avoid double counting. The bot needs View Channel
 and Read Message History in the channels it should count. Messages sent while the bot was offline are not counted.
+
+## Admin panel
+
+An optional web panel runs inside the bot process on its own HTTPS port, sharing the Discord client
+and the database. It is off unless `PANEL_PORT` is set. Phase 1 covers login and an overview page;
+settings, texts and statistics follow.
+
+- **Login:** "Login with Discord" (OAuth2, scope `identify` only). Only the server owner, members
+  with Administrator, and members with the Admin or Moderator role get in. The role is checked
+  against the live server on every request (cached for a minute), so removing it removes access.
+- **Sessions:** signed `__Host-` cookies (HttpOnly, Secure, SameSite=Lax), valid for 12 hours. The
+  OAuth `state` is bound to a separate short-lived signed cookie.
+- **Protection:** CSRF token plus same-origin check on every POST, strict Content-Security-Policy,
+  HSTS, no framing, `no-store` caching, and a rate limit on the login routes.
+- **TLS:** the bot serves HTTPS itself with `PANEL_CERT_FILE` and `PANEL_KEY_FILE` (certificate with
+  its chain, and key). It reloads them within an hour when the files change, so a renewed
+  certificate needs no restart.
+
+Setup:
+
+1. Point a DNS name at the host and get a certificate for it (e.g. a wildcard certificate).
+2. In the Developer Portal, application > OAuth2: add the redirect `<PANEL_URL>/auth/callback` and
+   copy the Client Secret into `DISCORD_CLIENT_SECRET`.
+3. Fill in the panel block of `.env` (see `.env.example`), with a new random `PANEL_SESSION_SECRET`.
+4. With Docker, also publish the port in `docker-compose.yml` (e.g. `ports: ["25569:25569"]`).
 
 ## Running
 
