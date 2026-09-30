@@ -1,6 +1,7 @@
 // The message posted by /post-verify-info. The bot remembers where it is (bot_meta) and keeps it
-// in sync with privacyNotice.js: it checks the file every minute and edits the message when the
-// text changes, also after a restart. Edits do not ping anyone again. Posting again moves it.
+// in sync with privacyNotice.js: it checks the file every minute and, when the text changes, posts
+// it again (pinging everyone and the roles) and deletes the old one. Discord never sends
+// notifications for edited messages, so a new message is the only way to ping on every update.
 
 const fs = require("fs");
 const pool = require("./database");
@@ -31,7 +32,7 @@ async function location() {
     return { channelId, messageId };
 }
 
-// Edits the posted message if its text differs from privacyNotice.js.
+// Reposts the message if its text differs from privacyNotice.js.
 async function sync(client) {
     const where = await location();
     if (!where) return;
@@ -40,8 +41,8 @@ async function sync(client) {
         const channel = await client.channels.fetch(where.channelId);
         const message = await channel.messages.fetch(where.messageId);
         if (message.content === text) return;
-        await message.edit({ content: text, allowedMentions: { parse: [] } });
-        console.log("Verify info message updated from privacyNotice.js.");
+        await post(client, channel);
+        console.log("Verify info message reposted from privacyNotice.js.");
     } catch (err) {
         if (err.code === UNKNOWN_MESSAGE || err.code === UNKNOWN_CHANNEL) {
             console.log("Verify info message was deleted, no longer updating it.");

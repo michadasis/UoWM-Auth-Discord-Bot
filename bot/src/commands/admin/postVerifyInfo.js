@@ -12,7 +12,7 @@ module.exports = {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         try {
             await post(client, interaction.channel);
-            await interaction.editReply({ content: 'Το μήνυμα δημοσιεύτηκε και θα ενημερώνεται αυτόματα όταν αλλάζει το privacyNotice.js. Αν υπήρχε προηγούμενο, διαγράφηκε.' });
+            await interaction.editReply({ content: 'Το μήνυμα δημοσιεύτηκε. Όταν αλλάζει το privacyNotice.js, θα ξαναστέλνεται αυτόματα (με ping) και το παλιό θα διαγράφεται. Αν υπήρχε προηγούμενο, διαγράφηκε.' });
         } catch (err) {
             console.error('/post-verify-info failed:', err);
             await interaction.editReply({ content: 'Δεν ήταν δυνατή η δημοσίευση. Ελέγξτε ότι το bot μπορεί να στέλνει μηνύματα σε αυτό το κανάλι.' });
