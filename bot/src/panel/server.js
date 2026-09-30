@@ -13,6 +13,15 @@ const { guildOptions, readSettingsForm } = require("./settingsForm");
 const { EmbedBuilder } = require("discord.js");
 const colors = require("../lib/colors");
 const { adminLog } = require("../lib/adminLog");
+const texts = require("../lib/texts");
+const { PLACEHOLDERS, MAX_LENGTH, renderTemplate, toTemplate, checkTemplate } = require("../lib/verifyTemplate");
+const { fileText } = require("../lib/verifyInfoMessage");
+const { periodEntries } = require("../lib/activityData");
+const { expandPeriods, dayKey, formatDay } = require("../lib/messageStats");
+const { loadEmailConfig } = require("../lib/config");
+const { renderDiscord } = require("./discordPreview");
+const { toLines, fromLines } = require("./periodLines");
+const { readFacultyFile, checkFacultyText, writeFacultyFile } = require("./facultyFile");
 
 const SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; style-src 'self'; img-src 'self' https://cdn.discordapp.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
@@ -139,6 +148,75 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
         return "`" + value.replace(/`/g, "'") + "`";
     }
 
+    async function names() {
+        const g = await guild();
+        await g.roles.fetch();
+        await g.channels.fetch();
+        return {
+            roles: new Map([...g.roles.cache.values()].map((r) => [r.id, r.name])),
+            channels: new Map([...g.channels.cache.values()].map((c) => [c.id, c.name])),
+        };
+    }
+
+    // For POST forms: CSRF token and same origin, or a 403 page. Returns the form or null.
+    async function checkedForm(req, res, who, back, maxBytes = 64 * 1024) {
+        const form = await readForm(req, maxBytes);
+        if (!sameOrigin(req, origin) || !session.safeEqual(form.get("csrf") || "", who.csrf)) {
+            send(res, 403, pages.messagePage("Μη έγκυρο αίτημα", "Ανανεώστε τη σελίδα και δοκιμάστε ξανά.", `<a class="button ghost" href="${back}">Πίσω</a>`));
+            return null;
+        }
+        return form;
+    }
+
+    const logChange = (who, title, text) => adminLog(client, new EmbedBuilder().setColor(colors.blue).setTitle(title).setDescription(`**Από:** <@${who.user.id}>\n${text}`));
+
+    async function renderVerifyText(res, who, { template, errors = [], saved = false, previewed = false }, status = 200) {
+        const fromPanel = texts.getText("verify_info") !== null;
+        const current = template ?? (fromPanel ? texts.getText("verify_info") : toTemplate(fileText()));
+        const n = await names();
+        const message = renderTemplate(current);
+        return send(res, status, pages.verifyTextPage({
+            user: who.user, csrf: who.csrf, template: current, previewHtml: renderDiscord(message, n),
+            length: message.length, maxLength: MAX_LENGTH, fromPanel,
+            placeholders: PLACEHOLDERS.map(([name, key]) => [name, process.env[key] ? n.roles.get(process.env[key]) : null]),
+            errors, saved, previewed,
+        }));
+    }
+
+    const KIND_LABEL = { yearly: "κάθε χρόνο", easter: "Πάσχα", dated: "μία φορά" };
+
+    // The periods of the current academic year (September to August), one row each.
+    function academicYearRows(entries) {
+        const today = dayKey(new Date());
+        const year = Number(today.slice(0, 4));
+        const start = Number(today.slice(5, 7)) >= 9 ? year : year - 1;
+        const from = `${start}-09-01`;
+        const to = `${start + 1}-08-31`;
+        const rows = [];
+        for (const entry of entries) {
+            for (const p of expandPeriods([entry], start, start + 1)) {
+                if (p.start >= from && p.start <= to) rows.push({ name: p.name, start: formatDay(p.start), end: formatDay(p.end), type: KIND_LABEL[entry.kind], sort: p.start });
+            }
+        }
+        return rows.sort((a, b) => a.sort.localeCompare(b.sort));
+    }
+
+    async function renderPeriods(res, who, { lines, entries, errors = [], saved = false, previewed = false }, status = 200) {
+        const fromPanel = texts.getText("periods") !== null;
+        let current = entries;
+        if (!current) {
+            try {
+                current = await periodEntries();
+            } catch (err) {
+                current = [];
+                errors = [...errors, `Το αρχείο περιόδων δεν διαβάζεται: ${err.message}`];
+            }
+        }
+        return send(res, status, pages.periodsPage({
+            user: who.user, csrf: who.csrf, lines: lines ?? toLines(current), rows: academicYearRows(current), fromPanel, errors, saved, previewed,
+        }));
+    }
+
     const routes = {
         "GET /panel.css": async (req, res) => send(res, 200, pages.CSS, { "Content-Type": "text/css; charset=utf-8", "Cache-Control": "public, max-age=3600" }),
 
@@ -196,6 +274,74 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
 
         "GET /settings": async (req, res, ip, url) => withUser(req, res, (who) =>
             renderSettings(res, who, { saved: url.searchParams.get("saved") === "1" })),
+
+        "GET /verify-text": async (req, res, ip, url) => withUser(req, res, (who) =>
+            renderVerifyText(res, who, { saved: url.searchParams.get("saved") === "1" })),
+
+        "POST /verify-text": async (req, res) => withUser(req, res, async (who) => {
+            const form = await checkedForm(req, res, who, "/verify-text");
+            if (!form) return;
+            const action = form.get("action");
+            if (action === "reset") {
+                if (texts.getText("verify_info") !== null) {
+                    await texts.setText(pool, "verify_info", null, who.user.id);
+                    await logChange(who, "Μήνυμα επαλήθευσης", "Επαναφορά στο privacyNotice.js.");
+                }
+                return redirect(res, "/verify-text?saved=1");
+            }
+            const template = String(form.get("template") ?? "").replace(/\r\n/g, "\n").replace(/\s+$/, "");
+            if (action === "preview") return renderVerifyText(res, who, { template, previewed: true });
+            const errors = checkTemplate(template);
+            if (errors.length) return renderVerifyText(res, who, { template, errors }, 400);
+            const before = texts.getText("verify_info") ?? toTemplate(fileText());
+            if (template !== before || texts.getText("verify_info") === null) {
+                await texts.setText(pool, "verify_info", template, who.user.id);
+                await logChange(who, "Μήνυμα επαλήθευσης", `Το κείμενο άλλαξε (${renderTemplate(template).length} χαρακτήρες).`);
+            }
+            return redirect(res, "/verify-text?saved=1");
+        }),
+
+        "GET /periods": async (req, res, ip, url) => withUser(req, res, (who) =>
+            renderPeriods(res, who, { saved: url.searchParams.get("saved") === "1" })),
+
+        "POST /periods": async (req, res) => withUser(req, res, async (who) => {
+            const form = await checkedForm(req, res, who, "/periods");
+            if (!form) return;
+            const action = form.get("action");
+            if (action === "reset") {
+                if (texts.getText("periods") !== null) {
+                    await texts.setText(pool, "periods", null, who.user.id);
+                    await logChange(who, "Περίοδοι", "Επαναφορά στο data/periods.json.");
+                }
+                return redirect(res, "/periods?saved=1");
+            }
+            const lines = String(form.get("lines") ?? "").replace(/\r\n/g, "\n");
+            const { entries, json, errors } = fromLines(lines);
+            if (errors.length) return renderPeriods(res, who, { lines, entries: [], errors }, 400);
+            if (action === "preview") return renderPeriods(res, who, { lines, entries, previewed: true });
+            await texts.setText(pool, "periods", json, who.user.id);
+            await logChange(who, "Περίοδοι", `Αποθηκεύτηκαν ${entries.length} περίοδοι.`);
+            return redirect(res, "/periods?saved=1");
+        }),
+
+        "GET /faculty": async (req, res, ip, url) => withUser(req, res, async (who) => {
+            const { facultyFile, domain } = loadEmailConfig();
+            const text = await readFacultyFile(facultyFile);
+            return send(res, 200, pages.facultyPage({ user: who.user, csrf: who.csrf, text, domain, count: checkFacultyText(text, domain).count, saved: url.searchParams.get("saved") === "1" }));
+        }),
+
+        "POST /faculty": async (req, res) => withUser(req, res, async (who) => {
+            const form = await checkedForm(req, res, who, "/faculty", 256 * 1024);
+            if (!form) return;
+            const { facultyFile, domain } = loadEmailConfig();
+            const text = String(form.get("text") ?? "");
+            const { count, errors } = checkFacultyText(text, domain);
+            if (errors.length) return send(res, 400, pages.facultyPage({ user: who.user, csrf: who.csrf, text, domain, count, errors }));
+            const before = checkFacultyText(await readFacultyFile(facultyFile), domain).count;
+            await writeFacultyFile(facultyFile, text);
+            await logChange(who, "Λίστα καθηγητών", `Διευθύνσεις: ${before} → ${count}.`);
+            return redirect(res, "/faculty?saved=1");
+        }),
 
         "POST /settings": async (req, res) => withUser(req, res, async (who) => {
             const form = await readForm(req, 32 * 1024);

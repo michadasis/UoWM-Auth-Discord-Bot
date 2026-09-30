@@ -232,8 +232,8 @@ and Read Message History in the channels it should count. Messages sent while th
 ## Admin panel
 
 An optional web panel runs inside the bot process on its own HTTPS port, sharing the Discord client
-and the database. It is off unless `PANEL_PORT` is set. Phases 1 and 2 cover login, an overview page and
-the settings; texts and statistics follow.
+and the database. It is off unless `PANEL_PORT` is set. Phases 1 to 3 cover login, an overview page, the
+settings and the texts; statistics follow.
 
 - **Login:** "Login with Discord" (OAuth2, scope `identify` only). Only the server owner, members
   with Administrator, and members with the Admin or Moderator role get in. The role is checked
@@ -249,6 +249,20 @@ the settings; texts and statistics follow.
   roles, roles above the bot that it has to assign, and channels where the bot cannot post; one
   invalid field saves nothing. Every change is written to the admin log with who made it. Secrets
   stay in `.env` only.
+- **Texts (phase 3):**
+  - *Μήνυμα επαλήθευσης:* edit the #verify message with a Discord-style preview. Roles are written
+    as placeholders (`{Φοιτητής}`, `{Καθηγητής}`, `{Προσωπικό}`, `{Προσωρινή άδεια}`, `{Admin}`,
+    `{Moderator}`), so the text follows role changes in the settings. Saving reposts the message
+    right away if the text changed (with pings). Checked for unknown placeholders and Discord's
+    2000-character limit. Stored in the `texts` table; "Επαναφορά στο αρχείο" goes back to
+    `privacyNotice.js`.
+  - *Περίοδοι:* one line per period, `name | start | end`, with `MM-DD` (every year),
+    `easter-6 | easter+7` (around Orthodox Easter) or `YYYY-MM-DD` (once), and a table of the
+    current academic year. Stored in the `texts` table, overriding `data/periods.json`, so git
+    pulls never conflict with it.
+  - *Καθηγητές:* edit `data/faculty-emails.txt` directly (it is not in git); every line is checked
+    to be an address of the institutional domain, and the file is written atomically.
+  Every save is written to the admin log with who made it.
 - **TLS:** the bot serves HTTPS itself with `PANEL_CERT_FILE` and `PANEL_KEY_FILE` (certificate with
   its chain, and key). It reloads them within an hour when the files change, so a renewed
   certificate needs no restart.

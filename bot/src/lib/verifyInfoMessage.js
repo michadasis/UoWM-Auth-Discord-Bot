@@ -1,12 +1,15 @@
 // The message posted by /post-verify-info. The bot remembers where it is (bot_meta) and keeps it
-// in sync with privacyNotice.js: it checks the file every minute and, when the text changes, posts
-// it again (pinging everyone and the roles) and deletes the old one. Discord never sends
-// notifications for edited messages, so a new message is the only way to ping on every update.
+// in sync with its text: the version edited in the admin panel if there is one, otherwise
+// privacyNotice.js. It checks every minute (and right after a panel save) and, when the text
+// changes, posts it again (pinging everyone and the roles) and deletes the old one. Discord never
+// sends notifications for edited messages, so a new message is the only way to ping on every update.
 
 const fs = require("fs");
 const pool = require("./database");
 const { ensureSchema, getMeta, setMeta } = require("./messageStats");
 const liveStats = require("./verifiedStatsMessage");
+const texts = require("./texts");
+const { renderTemplate } = require("./verifyTemplate");
 
 const NOTICE_FILE = require.resolve("./privacyNotice");
 const META_KEY = "verify_info_message";
@@ -19,14 +22,24 @@ let loadedMtime = -1;
 // The text includes role mentions from the settings: re-read it after a panel change.
 require("./settings").onChange(() => { loadedMtime = -1; });
 
-// The current text of privacyNotice.js, re-read from disk when the file has changed.
-function currentText() {
+let syncClient = null;
+// A text saved in the panel applies right away instead of at the next minute.
+texts.onTextChange((key) => { if (key === "verify_info" && syncClient) return sync(syncClient); });
+
+// The text of privacyNotice.js, re-read from disk when the file has changed.
+function fileText() {
     const mtime = fs.statSync(NOTICE_FILE).mtimeMs;
     if (mtime !== loadedMtime) {
         delete require.cache[NOTICE_FILE];
         loadedMtime = mtime;
     }
     return require(NOTICE_FILE).verifyMessage;
+}
+
+// The text to post: the panel version if there is one, otherwise privacyNotice.js.
+function currentText() {
+    const template = texts.getText("verify_info");
+    return template === null ? fileText() : renderTemplate(template);
 }
 
 async function location() {
@@ -82,9 +95,10 @@ async function post(client, channel) {
 }
 
 async function startSyncing(client) {
+    syncClient = client;
     await ensureSchema(pool);
     await sync(client);
     setInterval(() => sync(client).catch((err) => console.error("Verify info sync failed:", err)), CHECK_MS).unref();
 }
 
-module.exports = { post, sync, startSyncing, currentText };
+module.exports = { post, sync, startSyncing, currentText, fileText };

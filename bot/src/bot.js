@@ -66,6 +66,7 @@ const commandKit = new CommandKit({
     // Settings changed in the admin panel override .env. Load them before anything uses them.
     try {
         await settings.applyStored(pool);
+        await require("./lib/texts").loadTexts(pool);
         client.options.presence = presence();
     } catch (err) {
         console.error(`Loading panel settings failed, using .env only: ${err.message}`);

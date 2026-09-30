@@ -50,7 +50,27 @@ select, input[type=text] { width:100%; background:var(--bg); color:var(--text); 
 .banner.err { background:rgba(224,36,94,.12); border:1px solid rgba(224,36,94,.45); }
 .banner ul { margin:6px 0 0; padding-left:18px; }
 .actions { display:flex; justify-content:flex-end; gap:10px; margin-top:6px; }
+textarea { white-space:pre; overflow-wrap:normal; overflow-x:auto; width:100%; min-height:320px; resize:vertical; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:12px; font:13.5px/1.55 ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace; }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+.chips { display:flex; flex-wrap:wrap; gap:8px 14px; margin:8px 0 12px; font-size:14px; }
+.chips code, .preview code, .card code { background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:1px 5px; font-size:12.5px; }
+.preview { background:#313338; border-radius:8px; padding:14px 16px; color:#dbdee1; line-height:1.375; overflow-wrap:anywhere; }
+.preview .h1 { font-size:24px; font-weight:700; color:#f2f3f5; margin:8px 0 4px; }
+.preview .h2 { font-size:20px; font-weight:700; color:#f2f3f5; margin:8px 0 4px; }
+.preview .h3 { font-size:16px; font-weight:700; color:#f2f3f5; margin:8px 0 4px; }
+.preview .subtext { font-size:12px; color:#949ba4; }
+.preview .blank { height:10px; }
+.preview ol, .preview ul { margin:2px 0; padding-left:26px; }
+.preview .mention { background:rgba(88,101,242,.3); color:#c9cdfb; border-radius:3px; padding:0 2px; font-weight:500; }
+.count { font-size:13px; color:var(--muted); margin-top:6px; }
+table.list { width:100%; border-collapse:collapse; font-size:14px; }
+table.list th, table.list td { text-align:left; padding:7px 8px; border-top:1px solid var(--line); }
+table.list th { color:var(--muted); font-weight:600; border-top:0; }
+.chip { white-space:nowrap; }
+table.list td.date { white-space:nowrap; }
+.tag { white-space:nowrap; font-size:12px; border-radius:6px; padding:1px 7px; background:var(--bg); border:1px solid var(--line); color:var(--muted); }
 @media (max-width:640px) { .field { grid-template-columns:1fr; } }
+@media (max-width:860px) { .two { grid-template-columns:1fr; } }
 `;
 
 // Changes whenever the CSS changes, so browsers never keep an old cached stylesheet.
@@ -102,7 +122,7 @@ function avatarUrl(user) {
         : `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(user.id) >> 22n) % 6n)}.png`;
 }
 
-const TABS = [["/", "Αρχική"], ["/settings", "Ρυθμίσεις"]];
+const TABS = [["/", "Αρχική"], ["/settings", "Ρυθμίσεις"], ["/verify-text", "Μήνυμα επαλήθευσης"], ["/periods", "Περίοδοι"], ["/faculty", "Καθηγητές"]];
 
 function header(user, csrf, active) {
     const tabs = TABS.map(([href, label]) => `<a href="${href}"${href === active ? ' class="on"' : ""}>${label}</a>`).join("");
@@ -212,4 +232,95 @@ ${cards}
 </div>`);
 }
 
-module.exports = { CSS, escapeHtml, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, messagePage };
+function banner({ errors = [], saved = false, savedText = "Αποθηκεύτηκε." }) {
+    if (errors.length) return `<div class="banner err"><b>Δεν αποθηκεύτηκε τίποτα:</b><ul>${errors.map((e) => `<li>${escapeHtml(e)}</li>`).join("")}</ul></div>`;
+    return saved ? `<div class="banner ok">${escapeHtml(savedText)}</div>` : "";
+}
+
+const sourceNote = (fromPanel, fileName) => fromPanel
+    ? `Ισχύει η έκδοση του πίνακα. Το <code>${escapeHtml(fileName)}</code> αγνοείται μέχρι να κάνετε επαναφορά.`
+    : `Ισχύει το <code>${escapeHtml(fileName)}</code> από το repo. Με την αποθήκευση, η έκδοση του πίνακα θα το αντικαταστήσει.`;
+
+// template: text in the editor. previewHtml: rendered preview. placeholders: [name, roleName].
+function verifyTextPage({ user, csrf, template, previewHtml, length, maxLength, fromPanel, placeholders, errors, saved, previewed }) {
+    const chips = placeholders.map(([name, role]) => `<span class="chip"><code>{${escapeHtml(name)}}</code> → ${escapeHtml(role ? `@${role}` : "δεν έχει οριστεί")}</span>`).join("");
+    return layout("Μήνυμα επαλήθευσης", `<div class="wrap">
+${header(user, csrf, "/verify-text")}
+${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Το μήνυμα στο #επαλήθευση θα ξανασταλεί με ping, αν άλλαξε." })}
+<form method="post" action="/verify-text">
+<input type="hidden" name="csrf" value="${escapeHtml(csrf)}">
+<div class="two">
+  <div class="card">
+    <h2>Κείμενο</h2>
+    <div class="muted">Markdown του Discord. Για ρόλους γράψτε:</div>
+    <div class="chips">${chips}</div>
+    <textarea name="template" spellcheck="false">${escapeHtml(template)}</textarea>
+    <div class="count">${length} / ${maxLength} χαρακτήρες${previewed ? " · προεπισκόπηση, δεν έχει αποθηκευτεί" : ""}</div>
+  </div>
+  <div class="card">
+    <h2>Προεπισκόπηση</h2>
+    <div class="preview">${previewHtml}</div>
+  </div>
+</div>
+<p class="muted">${sourceNote(fromPanel, "bot/src/lib/privacyNotice.js")} Κάθε αποθήκευση που αλλάζει το κείμενο ξαναστέλνει το μήνυμα με ping σε όλους.</p>
+<div class="actions">
+  ${fromPanel ? '<button class="ghost" type="submit" name="action" value="reset">Επαναφορά στο αρχείο</button>' : ""}
+  <button class="ghost" type="submit" name="action" value="preview">Προεπισκόπηση</button>
+  <button class="primary" type="submit" name="action" value="save">Αποθήκευση</button>
+</div>
+</form>
+</div>`);
+}
+
+// rows: [{ name, start, end, type }] for the current academic year.
+function periodsPage({ user, csrf, lines, rows, fromPanel, errors, saved, previewed }) {
+    const table = rows.length
+        ? `<table class="list"><tr><th>Περίοδος</th><th>Από</th><th>Έως</th><th></th></tr>${rows.map((r) => `<tr><td>${escapeHtml(r.name)}</td><td class="date">${escapeHtml(r.start)}</td><td class="date">${escapeHtml(r.end)}</td><td><span class="tag">${escapeHtml(r.type)}</span></td></tr>`).join("")}</table>`
+        : '<p class="muted">Καμία περίοδος.</p>';
+    return layout("Περίοδοι", `<div class="wrap">
+${header(user, csrf, "/periods")}
+${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Ισχύει ήδη στο /stats activity." })}
+<form method="post" action="/periods">
+<input type="hidden" name="csrf" value="${escapeHtml(csrf)}">
+<div class="two">
+  <div class="card">
+    <h2>Περίοδοι</h2>
+    <div class="muted">Μία ανά γραμμή: <code>όνομα | αρχή | τέλος</code></div>
+    <div class="chips"><span class="chip"><code>09-28 | 01-08</code> κάθε χρόνο</span><span class="chip"><code>easter-6 | easter+7</code> γύρω από το Πάσχα</span><span class="chip"><code>2026-11-02 | 2026-11-06</code> μία φορά</span></div>
+    <textarea name="lines" spellcheck="false">${escapeHtml(lines)}</textarea>
+    ${previewed ? '<div class="count">Προεπισκόπηση, δεν έχει αποθηκευτεί</div>' : ""}
+  </div>
+  <div class="card">
+    <h2>Φετινό ακαδημαϊκό έτος</h2>
+    ${table}
+  </div>
+</div>
+<p class="muted">${sourceNote(fromPanel, "data/periods.json")} Οι ημέρες μετρούν στην πιο συγκεκριμένη περίοδο (π.χ. τα Χριστούγεννα μέσα στο χειμερινό). Τα χρώματα του γραφήματος βγαίνουν από τα ονόματα: Διακοπές, Διάλειμμα, Καλοκαίρι, Εξεταστική.</p>
+<div class="actions">
+  ${fromPanel ? '<button class="ghost" type="submit" name="action" value="reset">Επαναφορά στο αρχείο</button>' : ""}
+  <button class="ghost" type="submit" name="action" value="preview">Προεπισκόπηση</button>
+  <button class="primary" type="submit" name="action" value="save">Αποθήκευση</button>
+</div>
+</form>
+</div>`);
+}
+
+function facultyPage({ user, csrf, text, count, domain, errors, saved }) {
+    return layout("Καθηγητές", `<div class="wrap">
+${header(user, csrf, "/faculty")}
+${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Ισχύει από την επόμενη επαλήθευση." })}
+<form method="post" action="/faculty">
+<input type="hidden" name="csrf" value="${escapeHtml(csrf)}">
+<div class="card">
+  <h2>Λίστα καθηγητών</h2>
+  <div class="muted">Μία διεύθυνση @${escapeHtml(domain)} ανά γραμμή. Όποιος επαληθεύεται από αυτές παίρνει τον ρόλο Καθηγητής. Οι γραμμές που αρχίζουν με # αγνοούνται.</div>
+  <textarea name="text" spellcheck="false">${escapeHtml(text)}</textarea>
+  <div class="count">${count} διευθύνσεις</div>
+</div>
+<p class="muted">Αποθηκεύεται στο <code>data/faculty-emails.txt</code> στον server. Όσοι έχουν ήδη επαληθευτεί κρατούν τον ρόλο τους.</p>
+<div class="actions"><a class="button ghost" href="/faculty">Ακύρωση</a><button class="primary" type="submit">Αποθήκευση</button></div>
+</form>
+</div>`);
+}
+
+module.exports = { CSS, escapeHtml, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };
