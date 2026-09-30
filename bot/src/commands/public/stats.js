@@ -1,8 +1,9 @@
-const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder, MessageFlags } = require("discord.js");
 const path = require("path");
 const pool = require("../../lib/database");
 const colors = require("../../lib/colors");
 const { membersEmbed } = require("../../lib/memberStats");
+const { buildActivitySvg, renderPng } = require("../../lib/activityChart");
 const { dayKey, loadPeriodEntries, expandPeriods, dailyTotals, totalsByPeriod, topChannels, getMeta, formatDay } = require("../../lib/messageStats");
 
 const PERIODS_FILE = path.resolve(process.env.PERIODS_FILE || "data/periods.json");
@@ -11,9 +12,10 @@ const OUTSIDE_PERIODS = "Εκτός περιόδων";
 // Day and month only, for ranges inside the year the embed is about.
 const shortDay = (day) => formatDay(day).replace(/\/\d{4}$/, '');
 
-const notice = (title, description) => new EmbedBuilder().setColor(colors.yellow).setTitle(title).setDescription(description);
+const notice = (title, description) => ({ embeds: [new EmbedBuilder().setColor(colors.yellow).setTitle(title).setDescription(description)] });
 
-async function activityEmbed(client, requestedYear) {
+// The reply for /stats activity: { embeds, files }.
+async function activityReply(client, requestedYear) {
     const today = dayKey(new Date());
     const thisYear = Number(today.slice(0, 4));
     const year = requestedYear ?? thisYear;
@@ -71,7 +73,17 @@ async function activityEmbed(client, requestedYear) {
     if (year === thisYear) footer.push(`έως σήμερα, ${formatDay(today)}`);
     if (footer.length) lines.push('', `-# ${footer.join(', ').replace(/^./, (c) => c.toUpperCase())}`);
 
-    return new EmbedBuilder().setColor(colors.blue).setTitle(`Δραστηριότητα ${year}`).setDescription(lines.join('\n'));
+    const embed = new EmbedBuilder().setColor(colors.blue).setTitle(`Δραστηριότητα ${year}`).setDescription(lines.join('\n'));
+
+    // The chart is a bonus: if it cannot be drawn, the numbers are still sent.
+    try {
+        const name = `activity-${year}.png`;
+        const png = renderPng(buildActivitySvg({ year, days, periods, today }));
+        return { embeds: [embed.setImage(`attachment://${name}`)], files: [new AttachmentBuilder(png, { name })] };
+    } catch (err) {
+        console.error(`Drawing activity chart failed: ${err.message}`);
+        return { embeds: [embed] };
+    }
 }
 
 module.exports = {
@@ -93,16 +105,16 @@ module.exports = {
     run: async ({ interaction, client }) => {
         await interaction.deferReply({ flags: interaction.guild !== null ? MessageFlags.Ephemeral : undefined });
 
-        let embed;
+        let reply;
         try {
-            embed = interaction.options.getSubcommand() === 'members'
-                ? await membersEmbed(client)
-                : await activityEmbed(client, interaction.options.getInteger('year'));
+            reply = interaction.options.getSubcommand() === 'members'
+                ? { embeds: [await membersEmbed(client)] }
+                : await activityReply(client, interaction.options.getInteger('year'));
         } catch (err) {
             console.error('/stats failed:', err);
-            embed = new EmbedBuilder().setColor(colors.red).setTitle('Σφάλμα').setDescription('Τα στατιστικά δεν είναι διαθέσιμα αυτή τη στιγμή.');
+            reply = { embeds: [new EmbedBuilder().setColor(colors.red).setTitle('Σφάλμα').setDescription('Τα στατιστικά δεν είναι διαθέσιμα αυτή τη στιγμή.')] };
         }
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply(reply);
     },
 
     options: {},

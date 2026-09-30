@@ -10,6 +10,7 @@
   "author": "Thomas Soumpasis <thomasoumpasis@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "commandkit": "^0.1.10",
     "discord.js": "^14.27.0",
     "mariadb": "^3.5.4",

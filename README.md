@@ -69,7 +69,7 @@ Rules:
 | `/code code` | everyone | Enters the code (same as the button under the `/auth` reply). |
 | `/unverify` | everyone | Deletes your data and removes Φοιτητής/Καθηγητής and semester roles. |
 | `/stats members` | everyone | Verified students, faculty and staff, guests with temporary access, and bot uptime. |
-| `/stats activity [year]` | everyone | Messages in a calendar year (default: the current one), per period and top channels. |
+| `/stats activity [year]` | everyone | Messages in a calendar year (default: the current one), per period and top channels, with a chart of messages per day. |
 | `/force-unverify user [reason]` | admins, moderators | Same as `/unverify` for another member, logged. |
 | `/verify-status user` | admins, moderators | Verified or not, affiliation, date, guest status, pending code. |
 | `/post-verify-info` | admins, moderators | Posts the instructions and the privacy notice in the current channel. |
@@ -215,6 +215,12 @@ September or later belongs to that year and the next, anything earlier to the pr
 may overlap: a day inside both the winter semester and the Christmas break counts as Christmas, the period that
 started last. In `/stats activity` every day counts towards exactly one period, so the per-period numbers add up to
 the year's total; days outside every period are listed as Εκτός περιόδων. The file is read on every `/stats activity`, so edits apply without a restart.
+
+`/stats activity` also attaches a bar chart of messages per day. Bars are coloured by the name of their period:
+names with Διακοπές, Διάλειμμα or Καλοκαίρι are breaks, names with Εξεταστική are exam sessions, anything else is a
+semester. The chart is drawn as SVG and rendered to PNG with `@resvg/resvg-js`, which ships prebuilt binaries (no
+build tools needed), using the bundled Noto Sans in `bot/assets/fonts` (SIL Open Font License, `OFL.txt`). If the
+chart cannot be drawn, the numbers are sent without it.
 
 Live counting starts the first time the bot runs with this feature. To include older messages, an admin runs
 `/stats-backfill` once. It reads every channel and public thread the bot can see, counts the messages from before

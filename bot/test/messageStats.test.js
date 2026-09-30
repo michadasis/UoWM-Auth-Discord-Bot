@@ -90,3 +90,20 @@ test("totalsByPeriod puts each day in one period so the parts add up", () => {
 test("formatDay", () => {
     assert.equal(formatDay("2027-01-05"), "5/1/2027");
 });
+
+test("chart colours periods by their name, breaks before exams", () => {
+    const { kindOf, niceMax } = require("../src/lib/activityChart");
+    assert.equal(kindOf({ name: "Εξεταστική Ιουνίου 2025-2026" }), "exams");
+    assert.equal(kindOf({ name: "Διάλειμμα πριν την εξεταστική Ιουνίου 2025-2026" }), "break");
+    assert.equal(kindOf({ name: "Καλοκαίρι 2025-2026" }), "break");
+    assert.equal(kindOf({ name: "Χειμερινό εξάμηνο 2026-2027" }), "semester");
+    assert.equal(kindOf(null), "outside");
+    assert.deepEqual([3, 105, 380].map(niceMax), [4, 120, 400]);
+});
+
+test("chart renders to a PNG with the bundled font", () => {
+    const { buildActivitySvg, renderPng } = require("../src/lib/activityChart");
+    const periods = expandPeriods(parsePeriods(YEARLY), 2025, 2026);
+    const png = renderPng(buildActivitySvg({ year: 2026, days: [{ day: "2026-03-01", count: 12 }], periods, today: "2026-09-30" }));
+    assert.equal(png.subarray(1, 4).toString(), "PNG");
+});
