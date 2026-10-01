@@ -94,6 +94,21 @@ nav.tabs a:hover { color:var(--white); text-decoration:none; }
 .recent .when { color:var(--muted); white-space:nowrap; }
 footer.foot { margin-top:36px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:12.5px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
 .actions { flex-wrap:wrap; align-items:center; }
+.wrap.wide { max-width:1280px; }
+.editor-grid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:16px; align-items:start; }
+.editor-grid .preview-card { position:sticky; top:12px; max-height:calc(100vh - 110px); overflow:auto; }
+textarea.wrap-text { white-space:pre-wrap; overflow-wrap:anywhere; min-height:560px; font-size:14px; line-height:1.6; }
+.count.over { color:var(--crimson); font-weight:600; }
+input.filter, .toolbar input[type=search] { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 10px; font:inherit; margin-bottom:8px; }
+.toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin-bottom:6px; }
+.toolbar label { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--muted); flex:1; min-width:180px; }
+.toolbar select { min-width:150px; }
+.person { display:flex; align-items:center; gap:10px; }
+.person img { width:28px; height:28px; border-radius:50%; flex-shrink:0; }
+.person .sub { color:var(--muted); font-size:12.5px; }
+.danger { background:transparent; color:#ff8fa8; border:1px solid rgba(224,36,94,.55); padding:6px 12px; font-size:13px; }
+.pager { display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:12px; font-size:14px; }
+.tag.off { color:var(--orange); border-color:rgba(244,161,28,.5); }
 .actions.sticky { position:sticky; bottom:0; z-index:5; margin:16px -4px 0; padding:12px 4px; background:linear-gradient(to top, var(--bg) 70%, rgba(30,31,34,0)); }
 .confirm { display:flex; gap:8px; align-items:center; margin-right:auto; color:var(--muted); font-size:14px; }
 .health { list-style:none; margin:0; padding:0; }
@@ -124,7 +139,11 @@ footer.foot { margin-top:36px; padding-top:16px; border-top:1px solid var(--line
   .stat b { font-size:20px; }
 }
 @media (max-width:860px) { .two { grid-template-columns:1fr; } }
+@media (max-width:980px) { .editor-grid { grid-template-columns:1fr; } .editor-grid .preview-card { position:static; max-height:none; } }
 `;
+
+const { CLIENT_JS } = require("./clientScript");
+const JS_VERSION = require("crypto").createHash("sha256").update(CLIENT_JS).digest("hex").slice(0, 10);
 
 // Changes whenever the CSS changes, so browsers never keep an old cached stylesheet.
 const CSS_VERSION = require("crypto").createHash("sha256").update(CSS).digest("hex").slice(0, 10);
@@ -143,6 +162,7 @@ function layout(title, body) {
 <title>${escapeHtml(title)} · Πληροφορική UoWM</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/panel.css?v=${CSS_VERSION}">
+<script src="/panel.js?v=${JS_VERSION}" defer></script>
 </head>
 <body>${body}</body>
 </html>`;
@@ -186,7 +206,7 @@ function avatarUrl(user) {
 
 const footer = () => `<footer class="foot"><span>Πληροφορική UoWM · Πίνακας διαχείρισης του bot</span><span>Ανεπίσημη υπηρεσία από φοιτητές</span></footer>`;
 
-const TABS = [["/", "Αρχική"], ["/stats", "Στατιστικά"], ["/settings", "Ρυθμίσεις"], ["/verify-text", "Μήνυμα επαλήθευσης"], ["/periods", "Περίοδοι"], ["/faculty", "Καθηγητές"]];
+const TABS = [["/", "Αρχική"], ["/stats", "Στατιστικά"], ["/members", "Μέλη"], ["/guests", "Προσωρινές άδειες"], ["/settings", "Ρυθμίσεις"], ["/verify-text", "Μήνυμα επαλήθευσης"], ["/periods", "Περίοδοι"], ["/faculty", "Καθηγητές"]];
 
 function header(user, csrf, active) {
     const tabs = TABS.map(([href, label]) => `<a href="${href}"${href === active ? ' class="on"' : ""}>${label}</a>`).join("");
@@ -202,6 +222,74 @@ function header(user, csrf, active) {
   </div>
 </div>
 <nav class="tabs">${tabs}</nav>`;
+}
+
+const AFF_LABELS = { student: "Φοιτητής", faculty: "Καθηγητής", staff: "Προσωπικό" };
+
+function avatarFor(p) {
+    return p.avatar ? `https://cdn.discordapp.com/avatars/${p.id}/${p.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(p.id) >> 22n) % 6n)}.png`;
+}
+
+const personCell = (p) => `<div class="person"><img src="${escapeHtml(avatarFor(p))}" alt="" loading="lazy"><div><div>${escapeHtml(p.name)}</div><div class="sub">${p.username ? `@${escapeHtml(p.username)} · ` : ""}${escapeHtml(p.id)}</div></div></div>`;
+
+const hiddenCsrf = (csrf) => `<input type="hidden" name="csrf" value="${escapeHtml(csrf)}">`;
+
+// view: { items, total, q, aff, page, pages, counts, done }
+function membersPage({ user, csrf, view }) {
+    const affOptions = [["", "Όλοι"], ["student", "Φοιτητές"], ["faculty", "Καθηγητές"], ["staff", "Προσωπικό"]]
+        .map(([v, l]) => `<option value="${v}"${v === view.aff ? " selected" : ""}>${l}${v && view.counts[v] !== undefined ? ` (${view.counts[v]})` : ""}</option>`).join("");
+    const link = (page) => `/members?${new URLSearchParams({ ...(view.q ? { q: view.q } : {}), ...(view.aff ? { aff: view.aff } : {}), page })}`;
+    const rows = view.items.map((m) => `<tr>
+<td>${personCell(m)}</td>
+<td>${escapeHtml(AFF_LABELS[m.affiliation] ?? m.affiliation)}${m.inServer ? "" : ' <span class="tag off">εκτός server</span>'}</td>
+<td class="date">${escapeHtml(m.verifiedAt)}</td>
+<td class="num"><form method="post" action="/members/unverify" class="inline" data-confirm="Να αφαιρεθεί η επαλήθευση του ${escapeHtml(m.name)}; Θα χάσει τους ρόλους του και θα πρέπει να ξανακάνει /auth.">${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(m.id)}"><button class="danger" type="submit">Αφαίρεση</button></form></td>
+</tr>`).join("");
+    return layout("Μέλη", `<div class="wrap">
+${header(user, csrf, "/members")}
+${view.done ? `<div class="banner ok">${escapeHtml(view.done)}</div>` : ""}
+<div class="card">
+  <form class="toolbar" method="get" action="/members">
+    <label>Αναζήτηση<input type="search" name="q" value="${escapeHtml(view.q)}" placeholder="Όνομα, username ή ID"></label>
+    <label>Ιδιότητα<select name="aff">${affOptions}</select></label>
+    <button class="primary" type="submit">Αναζήτηση</button>
+  </form>
+  <p class="count">${view.total} επαληθευμένα μέλη${view.q || view.aff ? " με αυτά τα κριτήρια" : ""}</p>
+  ${rows ? `<table class="list"><tr><th>Μέλος</th><th>Ιδιότητα</th><th>Επαλήθευση</th><th></th></tr>${rows}</table>` : '<p class="muted">Κανένα μέλος.</p>'}
+  ${view.pages > 1 ? `<div class="pager">${view.page > 1 ? `<a class="button ghost" href="${escapeHtml(link(view.page - 1))}">Προηγούμενη</a>` : ""}<span class="muted">Σελίδα ${view.page} από ${view.pages}</span>${view.page < view.pages ? `<a class="button ghost" href="${escapeHtml(link(view.page + 1))}">Επόμενη</a>` : ""}</div>` : ""}
+</div>
+<p class="muted">Η αφαίρεση σβήνει τα δεδομένα του μέλους και αφαιρεί τους ρόλους επαλήθευσης και εξαμήνων, όπως το /force-unverify. Καταγράφεται στο admin log.</p>
+${footer()}
+</div>`);
+}
+
+// guests: [{ id, name, username, avatar, inServer, reason, givenBy }]
+function guestsPage({ user, csrf, guests, errors = [], done = null, form = {} }) {
+    const rows = guests.map((g) => `<tr>
+<td>${personCell(g)}${g.inServer ? "" : ' <span class="tag off">εκτός server</span>'}</td>
+<td>${escapeHtml(g.reason || "")}</td>
+<td>${escapeHtml(g.givenBy || "")}</td>
+<td class="num"><form method="post" action="/guests/remove" class="inline" data-confirm="Να αφαιρεθεί η προσωρινή άδεια του ${escapeHtml(g.name)};">${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(g.id)}"><button class="danger" type="submit">Αφαίρεση</button></form></td>
+</tr>`).join("");
+    return layout("Προσωρινές άδειες", `<div class="wrap">
+${header(user, csrf, "/guests")}
+${banner({ errors })}${done ? `<div class="banner ok">${escapeHtml(done)}</div>` : ""}
+<div class="card">
+  <h2>Νέα προσωρινή άδεια</h2>
+  <form class="toolbar" method="post" action="/guests/give">
+    ${hiddenCsrf(csrf)}
+    <label>Μέλος<input type="search" name="who" value="${escapeHtml(form.who || "")}" placeholder="Username, όνομα ή ID" required></label>
+    <label>Αιτιολογία<input type="search" name="reason" value="${escapeHtml(form.reason || "")}" placeholder="π.χ. μεταγραφή, δεν έχει ακόμα email" maxlength="300" required></label>
+    <button class="primary" type="submit">Δώσε άδεια</button>
+  </form>
+  <p class="count">Το μέλος παίρνει τον ρόλο Προσωρινή άδεια και ένα μήνυμα που του λέει να κάνει /auth μόλις αποκτήσει ιδρυματικό email.</p>
+</div>
+<div class="card">
+  <h2>Ενεργές προσωρινές άδειες (${guests.length})</h2>
+  ${rows ? `<table class="list"><tr><th>Μέλος</th><th>Αιτιολογία</th><th>Από</th><th></th></tr>${rows}</table>` : '<p class="muted">Καμία.</p>'}
+</div>
+${footer()}
+</div>`);
 }
 
 // [{ area, summary, who, when }] as a list.
@@ -342,20 +430,20 @@ const sourceNote = (fromPanel, fileName) => fromPanel
 // template: text in the editor. previewHtml: rendered preview. placeholders: [name, roleName].
 function verifyTextPage({ user, csrf, template, previewHtml, length, maxLength, fromPanel, placeholders, errors, saved, previewed }) {
     const chips = placeholders.map(([name, role]) => `<span class="chip"><code>{${escapeHtml(name)}}</code> → ${escapeHtml(role ? `@${role}` : "δεν έχει οριστεί")}</span>`).join("");
-    return layout("Μήνυμα επαλήθευσης", `<div class="wrap">
+    return layout("Μήνυμα επαλήθευσης", `<div class="wrap wide">
 ${header(user, csrf, "/verify-text")}
 ${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Το μήνυμα στο #επαλήθευση θα ξανασταλεί με ping, αν άλλαξε." })}
 <form method="post" action="/verify-text">
 <input type="hidden" name="csrf" value="${escapeHtml(csrf)}">
-<div class="two">
+<div class="editor-grid">
   <div class="card">
     <h2>Κείμενο</h2>
-    <div class="muted">Markdown του Discord. Για ρόλους γράψτε:</div>
+    <div class="muted">Markdown του Discord: <code># τίτλος</code>, <code>**έντονα**</code>, <code>__υπογράμμιση__</code>, <code>1. λίστα</code>, <code>-# μικρά</code>. Για ρόλους γράψτε:</div>
     <div class="chips">${chips}</div>
-    <textarea name="template" spellcheck="false">${escapeHtml(template)}</textarea>
-    <div class="count">${length} / ${maxLength} χαρακτήρες${previewed ? " · προεπισκόπηση, δεν έχει αποθηκευτεί" : ""}</div>
+    <textarea class="wrap-text" name="template" spellcheck="true" lang="el" data-live-preview="/verify-text/preview">${escapeHtml(template)}</textarea>
+    <div class="count${length > maxLength ? " over" : ""}" data-count>${length} / ${maxLength} χαρακτήρες${previewed ? " · προεπισκόπηση, δεν έχει αποθηκευτεί" : ""}</div>
   </div>
-  <div class="card">
+  <div class="card preview-card">
     <h2>Προεπισκόπηση</h2>
     <div class="preview">${previewHtml}</div>
   </div>
@@ -470,4 +558,4 @@ ${footer()}
 </div>`);
 }
 
-module.exports = { CSS, FAVICON_SVG, escapeHtml, statsPage, historyPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };
+module.exports = { CSS, FAVICON_SVG, CLIENT_JS, escapeHtml, statsPage, historyPage, membersPage, guestsPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };

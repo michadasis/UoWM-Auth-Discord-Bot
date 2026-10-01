@@ -28,9 +28,12 @@ const { toLines, fromLines } = require("./periodLines");
 const { readFacultyFile, checkFacultyText, writeFacultyFile } = require("./facultyFile");
 const panelLog = require("../lib/panelLog");
 const { healthChecks } = require("./health");
+const { verifiedMembers, guestList, findMember } = require("./people");
+const { removeVerification, AFFILIATION_LABELS } = require("../lib/verification");
+const { giveGuest, removeGuest } = require("../lib/guests");
 
 const SECURITY_HEADERS = {
-    "Content-Security-Policy": "default-src 'none'; style-src 'self'; img-src 'self' https://cdn.discordapp.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "Content-Security-Policy": "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; img-src 'self' https://cdn.discordapp.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "same-origin",
@@ -192,9 +195,10 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
     }
 
     // Every panel change goes to the admin log in Discord and to the panel's own history.
-    const logChange = async (who, title, text) => {
+    // plain: the history text, when the Discord text has mentions that would not read well there.
+    const logChange = async (who, title, text, plain = text) => {
         await adminLog(client, new EmbedBuilder().setColor(colors.blue).setTitle(title).setDescription(`**Από:** <@${who.user.id}>\n${text}`));
-        await panelLog.addEntry(pool, who.user.id, title, text);
+        await panelLog.addEntry(pool, who.user.id, title, plain);
     };
 
     async function renderVerifyText(res, who, { template, errors = [], saved = false, previewed = false }, status = 200) {
@@ -328,6 +332,8 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
     const routes = {
         "GET /panel.css": async (req, res) => send(res, 200, pages.CSS, { "Content-Type": "text/css; charset=utf-8", "Cache-Control": "public, max-age=3600" }),
 
+        "GET /panel.js": async (req, res) => send(res, 200, pages.CLIENT_JS, { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "public, max-age=3600" }),
+
         "GET /favicon.svg": async (req, res) => send(res, 200, pages.FAVICON_SVG, { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" }),
 
         "GET /login": async (req, res, ip, url) => {
@@ -443,6 +449,79 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
                 await logChange(who, "Μήνυμα επαλήθευσης", `Το κείμενο άλλαξε (${renderTemplate(template).length} χαρακτήρες).`);
             }
             return redirect(res, "/verify-text?saved=1");
+        }),
+
+        // Live preview while typing (the page's script calls this); same rendering as the button.
+        "POST /verify-text/preview": async (req, res) => withUser(req, res, async (who) => {
+            const form = await checkedForm(req, res, who, "/verify-text");
+            if (!form) return;
+            const message = renderTemplate(String(form.get("template") ?? "").replace(/\r\n/g, "\n"));
+            res.writeHead(200, { ...SECURITY_HEADERS, "Content-Type": "application/json; charset=utf-8" });
+            return res.end(JSON.stringify({ html: renderDiscord(message, await names()), length: message.length, maxLength: MAX_LENGTH }));
+        }),
+
+        "GET /members": async (req, res, ip, url) => withUser(req, res, async (who) => {
+            const q = (url.searchParams.get("q") || "").slice(0, 100);
+            const aff = ["student", "faculty", "staff"].includes(url.searchParams.get("aff")) ? url.searchParams.get("aff") : "";
+            const view = await verifiedMembers(pool, await guild(), { q, aff, page: url.searchParams.get("page") });
+            const done = url.searchParams.get("done");
+            return send(res, 200, pages.membersPage({ user: who.user, csrf: who.csrf, view: { ...view, q, aff, done: done ? `Αφαιρέθηκε η επαλήθευση του ${done}.` : null } }));
+        }),
+
+        "POST /members/unverify": async (req, res) => withUser(req, res, async (who) => {
+            const form = await checkedForm(req, res, who, "/members");
+            if (!form) return;
+            const id = String(form.get("id") || "");
+            if (!/^\d{17,20}$/.test(id)) return redirect(res, "/members");
+            const g = await guild();
+            const member = await g.members.fetch(id).catch(() => null);
+            const name = member ? member.displayName : id;
+            const record = await removeVerification(g, id, `Panel: removed by ${who.user.id}`);
+            if (record) {
+                const label = AFFILIATION_LABELS[record.affiliation] ?? record.affiliation;
+                await logChange(who, "Αφαίρεση επαλήθευσης", `<@${id}> (${label})`, `${name} (${label})`);
+            }
+            return redirect(res, `/members?done=${encodeURIComponent(name)}`);
+        }),
+
+        "GET /guests": async (req, res, ip, url) => withUser(req, res, async (who) => {
+            const done = url.searchParams.get("done");
+            return send(res, 200, pages.guestsPage({ user: who.user, csrf: who.csrf, guests: await guestList(pool, await guild()), done }));
+        }),
+
+        "POST /guests/give": async (req, res) => withUser(req, res, async (who) => {
+            const form = await checkedForm(req, res, who, "/guests");
+            if (!form) return;
+            const g = await guild();
+            const reason = String(form.get("reason") || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 300);
+            const fail = async (error) => send(res, 400, pages.guestsPage({ user: who.user, csrf: who.csrf, guests: await guestList(pool, g), errors: [error], form: { who: form.get("who"), reason } }));
+            if (!process.env.GUEST_ROLE_ID) return fail("Δεν έχει οριστεί ο ρόλος Προσωρινή άδεια στις Ρυθμίσεις.");
+            if (!reason) return fail("Γράψτε μια αιτιολογία.");
+            const found = await findMember(g, form.get("who"));
+            if (found.error) return fail(found.error);
+            const target = found.member;
+            if (target.user.bot) return fail("Δεν δίνεται άδεια σε bot.");
+            try {
+                await giveGuest(g, target.id, reason, who.user.id);
+            } catch (err) {
+                console.error("Panel: giving guest role failed:", err.message);
+                return fail("Δεν ήταν δυνατή η απόδοση του ρόλου. Ελέγξτε ότι ο ρόλος του bot είναι πάνω από την Προσωρινή άδεια.");
+            }
+            await panelLog.addEntry(pool, who.user.id, "Προσωρινές άδειες", `Δόθηκε στον ${target.displayName} (@${target.user.username}): ${reason}`);
+            return redirect(res, `/guests?done=${encodeURIComponent(`Δόθηκε προσωρινή άδεια στον ${target.displayName}.`)}`);
+        }),
+
+        "POST /guests/remove": async (req, res) => withUser(req, res, async (who) => {
+            const form = await checkedForm(req, res, who, "/guests");
+            if (!form) return;
+            const id = String(form.get("id") || "");
+            if (!/^\d{17,20}$/.test(id)) return redirect(res, "/guests");
+            const g = await guild();
+            const member = await g.members.fetch(id).catch(() => null);
+            const name = member ? member.displayName : id;
+            const { found, problems } = await removeGuest(client, g, id, who.user.id);
+            if (found) await panelLog.addEntry(pool, who.user.id, "Προσωρινές άδειες", `Αφαιρέθηκε από τον ${name}${problems.length ? ` (απέτυχε ${problems.join(" και ")})` : ""}`);
+            return redirect(res, `/guests?done=${encodeURIComponent(found ? `Αφαιρέθηκε η προσωρινή άδεια του ${name}.` : "Το μέλος δεν είχε προσωρινή άδεια.")}`);
         }),
 
         "GET /periods": async (req, res, ip, url) => withUser(req, res, (who) =>

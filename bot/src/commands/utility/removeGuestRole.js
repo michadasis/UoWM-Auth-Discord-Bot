@@ -1,5 +1,5 @@
 const { ApplicationCommandType, EmbedBuilder, PermissionFlagsBits, InteractionContextType, MessageFlags } = require('discord.js');
-const pool = require("../../lib/database");
+const { removeGuest } = require("../../lib/guests");
 const colors = require('../../lib/colors');
 
 module.exports = {
@@ -12,33 +12,14 @@ module.exports = {
 
     run: async ({ interaction, client }) => {
         const target = interaction.targetUser;
-        const guestResult = await pool.query('SELECT msg_id FROM guests WHERE discord_id = ?', [target.id]);
+        const { found, problems } = await removeGuest(client, interaction.guild, target.id, interaction.user.id);
 
-        if (guestResult.length === 0) {
+        if (!found) {
             const errorEmbed = new EmbedBuilder()
                 .setColor(colors.red)
                 .setTitle('Σφάλμα')
                 .setDescription(`Ο χρήστης <@${target.id}> δεν υπάρχει στη λίστα των <@&${process.env.GUEST_ROLE_ID}>.`);
             return interaction.reply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
-        }
-
-        const problems = [];
-
-        await pool.query('DELETE FROM guests WHERE discord_id = ?', [target.id]);
-
-        try {
-            const channel = await client.channels.fetch(process.env.GUEST_CHANNEL_ID);
-            const message = await channel.messages.fetch(guestResult[0].msg_id);
-            await message.delete();
-        } catch (error) {
-            problems.push('η διαγραφή του μηνύματος καταγραφής');
-        }
-
-        try {
-            const member = await interaction.guild.members.fetch(target.id);
-            await member.roles.remove(process.env.GUEST_ROLE_ID, `Guest role removed by ${interaction.user.id}`);
-        } catch (error) {
-            problems.push('η αφαίρεση του ρόλου');
         }
 
         const embed = problems.length

@@ -286,6 +286,15 @@ settings and texts.
   certificate's expiry (warning from 21 days before), each with a link to the fix where there is one.
 - **History:** every save and reset from the panel is kept in the `panel_log` table (who, what,
   when, old and new values for settings). The home page shows the latest and `/history` the last 100.
+- **Μέλη:** every verified member with name, username, affiliation and date, searchable (accents
+  ignored) and filterable, 50 per page, with a button that removes the verification like
+  `/force-unverify` (record, verification and semester roles). Members who left are marked.
+- **Προσωρινές άδειες:** give the guest role by username, display name or ID (ambiguous names are
+  refused with the matches listed), with a reason; list and remove active ones. Same behaviour as
+  the Give/Remove Guest Role commands, which now share `lib/guests.js`.
+- **Client script:** `/panel.js` (allowed by the CSP as `script-src 'self'`) adds confirmation
+  dialogs before removals, a filter box above long role lists, and a live preview while typing
+  the verify message. Every page still works without it.
 - **Ping confirmation:** saving a changed verify message requires ticking "Θα ξανασταλεί με ping σε
   όλους", since it reposts with pings.
 - **TLS:** the bot serves HTTPS itself with `PANEL_CERT_FILE` and `PANEL_KEY_FILE` (certificate with
