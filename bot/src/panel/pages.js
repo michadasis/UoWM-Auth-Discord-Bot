@@ -33,7 +33,7 @@ button, .button { font:inherit; font-weight:600; border:0; border-radius:8px; pa
 .box h1 { margin:0 0 8px; font-size:22px; color:var(--white); }
 .box p { margin:0 0 20px; }
 nav.tabs { display:flex; gap:6px; margin:-12px 0 22px; }
-nav.tabs a { padding:7px 14px; border-radius:8px; color:var(--muted); text-decoration:none; font-weight:600; }
+nav.tabs a { padding:7px 12px; border-radius:8px; color:var(--muted); text-decoration:none; font-weight:600; }
 nav.tabs a.on { background:var(--card); color:var(--white); border:1px solid var(--line); }
 .field { display:grid; grid-template-columns:220px 1fr; gap:6px 18px; padding:14px 0; border-top:1px solid var(--line); }
 .field:first-of-type { border-top:0; }
@@ -83,7 +83,7 @@ table.list td.bar { width:30%; }
 a:hover { text-decoration:underline; }
 button:hover, .button:hover { filter:brightness(1.12); text-decoration:none; }
 :focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
-nav.tabs { overflow-x:auto; scrollbar-width:none; }
+nav.tabs { flex-wrap:wrap; row-gap:4px; }
 nav.tabs a { white-space:nowrap; }
 nav.tabs a:hover { color:var(--white); text-decoration:none; }
 .card { overflow-x:auto; }
