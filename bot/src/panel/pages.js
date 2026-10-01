@@ -80,7 +80,39 @@ progress::-moz-progress-bar { background:var(--teal); border-radius:4px; }
 table.list td.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
 table.list td.bar { width:30%; }
 .chart { width:100%; border-radius:10px; display:block; }
-@media (max-width:640px) { .field { grid-template-columns:1fr; } }
+a:hover { text-decoration:underline; }
+button:hover, .button:hover { filter:brightness(1.12); text-decoration:none; }
+:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
+nav.tabs { overflow-x:auto; scrollbar-width:none; }
+nav.tabs a { white-space:nowrap; }
+nav.tabs a:hover { color:var(--white); text-decoration:none; }
+.card { overflow-x:auto; }
+.note { border-radius:10px; padding:10px 14px; margin:0 0 18px; font-size:14px; background:rgba(79,184,186,.12); border:1px solid rgba(79,184,186,.4); }
+.recent { list-style:none; margin:0; padding:0; }
+.recent li { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
+.recent li:first-child { border-top:0; }
+.recent .when { color:var(--muted); white-space:nowrap; }
+footer.foot { margin-top:36px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:12.5px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.actions { flex-wrap:wrap; }
+@media (max-width:640px) {
+  .field { grid-template-columns:1fr; }
+  .wrap { padding:16px 12px 32px; }
+  .top { margin-bottom:18px; }
+  .brand { font-size:15px; gap:8px; }
+  .brand .dots i { width:8px; height:8px; }
+  .user { gap:8px; }
+  .user span { display:none; }
+  .user img { width:28px; height:28px; }
+  .user button { padding:7px 12px; }
+  nav.tabs { flex-wrap:wrap; gap:4px; margin:-6px 0 16px; }
+  nav.tabs a { padding:6px 10px; font-size:14px; }
+  .card { padding:16px 14px; }
+  textarea { white-space:pre-wrap; min-height:260px; }
+  .chart { min-width:640px; }
+  .wide-only { display:none; }
+  .grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .stat b { font-size:20px; }
+}
 @media (max-width:860px) { .two { grid-template-columns:1fr; } }
 `;
 
@@ -88,6 +120,8 @@ table.list td.bar { width:30%; }
 const CSS_VERSION = require("crypto").createHash("sha256").update(CSS).digest("hex").slice(0, 10);
 
 const dots = '<span class="dots"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i></span>';
+
+const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1e1f22"/><g transform="rotate(45 32 32)"><rect x="17" y="17" width="13" height="13" fill="#e0245e"/><rect x="34" y="17" width="13" height="13" fill="#4fb8ba"/><rect x="17" y="34" width="13" height="13" fill="#bdb8b6"/><rect x="34" y="34" width="13" height="13" fill="#f4a11c"/></g></svg>`;
 
 function layout(title, body) {
     return `<!doctype html>
@@ -97,6 +131,7 @@ function layout(title, body) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>${escapeHtml(title)} · Πληροφορική UoWM</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/panel.css?v=${CSS_VERSION}">
 </head>
 <body>${body}</body>
@@ -112,10 +147,16 @@ ${action}
 </div></div>`);
 }
 
-const loginPage = () => messagePage(
+const LOGIN_NOTES = {
+    out: "Αποσυνδεθήκατε.",
+    cancelled: "Η σύνδεση ακυρώθηκε.",
+    expired: "Η σύνδεσή σας έληξε. Συνδεθείτε ξανά.",
+};
+
+const loginPage = (note) => messagePage(
     "Πίνακας διαχείρισης",
     "Μόνο για Admins και Moderators του server. Συνδεθείτε με τον λογαριασμό σας στο Discord.",
-    '<a class="button primary" href="/auth/start">Σύνδεση με Discord</a>',
+    `${LOGIN_NOTES[note] ? `<div class="note">${escapeHtml(LOGIN_NOTES[note])}</div>` : ""}<a class="button primary" href="/auth/start">Σύνδεση με Discord</a>`,
 );
 
 const forbiddenPage = () => messagePage(
@@ -132,6 +173,8 @@ function avatarUrl(user) {
         ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
         : `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(user.id) >> 22n) % 6n)}.png`;
 }
+
+const footer = () => `<footer class="foot"><span>Πληροφορική UoWM · Πίνακας διαχείρισης του bot</span><span>Ανεπίσημη υπηρεσία από φοιτητές</span></footer>`;
 
 const TABS = [["/", "Αρχική"], ["/stats", "Στατιστικά"], ["/settings", "Ρυθμίσεις"], ["/verify-text", "Μήνυμα επαλήθευσης"], ["/periods", "Περίοδοι"], ["/faculty", "Καθηγητές"]];
 
@@ -152,8 +195,9 @@ function header(user, csrf, active) {
 }
 
 // user: { id, username, globalName, avatar }. info: numbers for the overview.
-function dashboardPage({ user, csrf, info }) {
-    const stat = (value, label) => `<div class="stat"><b>${escapeHtml(value)}</b><span>${escapeHtml(label)}</span></div>`;
+// recent: [{ what, who, when }] latest panel changes.
+function dashboardPage({ user, csrf, info, recent = [] }) {
+    const stat = (value, label) => `<div class="stat"><b>${escapeHtml(typeof value === "number" ? value.toLocaleString("el-GR") : value)}</b><span>${escapeHtml(label)}</span></div>`;
     return layout("Πίνακας", `<div class="wrap">
 ${header(user, csrf, "/")}
 <div class="card">
@@ -174,7 +218,13 @@ ${header(user, csrf, "/")}
     ${stat(info.onlineSince, "Σε λειτουργία από")}
   </div>
 </div>
-<p class="muted">Τα κείμενα και τα στατιστικά θα προστεθούν στις επόμενες φάσεις.</p>
+<div class="card">
+  <h2>Πρόσφατες αλλαγές από τον πίνακα</h2>
+  ${recent.length
+        ? `<ul class="recent">${recent.map((r) => `<li><span>${escapeHtml(r.what)} <span class="muted">· ${escapeHtml(r.who)}</span></span><span class="when">${escapeHtml(r.when)}</span></li>`).join("")}</ul>`
+        : '<p class="muted">Καμία αλλαγή ακόμα. Ό,τι αλλάζει από τις ρυθμίσεις και τα κείμενα εμφανίζεται εδώ.</p>'}
+</div>
+${footer()}
 </div>`);
 }
 
@@ -208,27 +258,27 @@ function settingsPage({ user, csrf, settings, roles, channels, errors = [], save
 
     function input(s) {
         if (s.type === "role") {
-            return `<select name="${s.key}"><option value="">(κανένας)</option>${roles.map((r) => roleOption(r, r.id === s.value)).join("")}</select>`;
+            return `<select id="f-${s.key}" name="${s.key}"><option value="">(κανένας)</option>${roles.map((r) => roleOption(r, r.id === s.value)).join("")}</select>`;
         }
         if (s.type === "roles") {
             const chosen = new Set(String(s.value || "").split(",").filter(Boolean));
             return `<div class="checks">${roles.map((r) => `<label><input type="checkbox" name="${s.key}" value="${escapeHtml(r.id)}"${chosen.has(r.id) ? " checked" : ""}>@${escapeHtml(r.name)}</label>`).join("")}</div>`;
         }
         if (s.type === "channel") {
-            return `<select name="${s.key}"><option value="">(κανένα)</option>${channels.map((c) => `<option value="${escapeHtml(c.id)}"${c.id === s.value ? " selected" : ""}>#${escapeHtml(c.name)}${c.category ? ` (${escapeHtml(c.category)})` : ""}</option>`).join("")}</select>`;
+            return `<select id="f-${s.key}" name="${s.key}"><option value="">(κανένα)</option>${channels.map((c) => `<option value="${escapeHtml(c.id)}"${c.id === s.value ? " selected" : ""}>#${escapeHtml(c.name)}${c.category ? ` (${escapeHtml(c.category)})` : ""}</option>`).join("")}</select>`;
         }
         if (s.type === "lines") {
-            return `<textarea class="small" name="${s.key}" rows="5" spellcheck="false">${escapeHtml(s.value)}</textarea>`;
+            return `<textarea class="small" id="f-${s.key}" name="${s.key}" rows="5" spellcheck="false">${escapeHtml(s.value)}</textarea>`;
         }
         if (s.type === "number") {
-            return `<input type="number" name="${s.key}" min="${s.min}" max="${s.max}" step="1" value="${escapeHtml(s.value)}">`;
+            return `<input type="number" id="f-${s.key}" name="${s.key}" min="${s.min}" max="${s.max}" step="1" value="${escapeHtml(s.value)}">`;
         }
-        return `<input type="text" name="${s.key}" maxlength="${s.maxLength ?? 200}" value="${escapeHtml(s.value)}">`;
+        return `<input type="text" id="f-${s.key}" name="${s.key}" maxlength="${s.maxLength ?? 200}" value="${escapeHtml(s.value)}">`;
     }
 
     const cards = GROUPS.map(([group, title]) => {
         const fields = settings.filter((s) => s.group === group).map((s) => `<div class="field">
-  <div><label class="name">${escapeHtml(s.label)}</label><div class="help">${escapeHtml(s.help)}</div></div>
+  <div><label class="name" for="f-${s.key}">${escapeHtml(s.label)}</label><div class="help">${escapeHtml(s.help)}</div></div>
   <div>${input(s)}${envBox(s)}<div class="source">${source(s)}</div></div>
 </div>`).join("");
         return `<div class="card"><h2>${escapeHtml(title)}</h2>${fields}</div>`;
@@ -247,6 +297,7 @@ ${cards}
 <p class="muted">Ό,τι αλλάξετε εδώ υπερισχύει του .env. Αλλαγές σε ρόλους που αναφέρονται στο μήνυμα του #επαλήθευση το ξαναστέλνουν (με ping).</p>
 <div class="actions"><a class="button ghost" href="/settings">Ακύρωση</a><button class="primary" type="submit">Αποθήκευση</button></div>
 </form>
+${footer()}
 </div>`);
 }
 
@@ -287,13 +338,14 @@ ${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Το μήνυμ�
   <button class="primary" type="submit" name="action" value="save">Αποθήκευση</button>
 </div>
 </form>
+${footer()}
 </div>`);
 }
 
 // rows: [{ name, start, end, type }] for the current academic year.
 function periodsPage({ user, csrf, lines, rows, fromPanel, errors, saved, previewed }) {
     const table = rows.length
-        ? `<table class="list"><tr><th>Περίοδος</th><th>Από</th><th>Έως</th><th></th></tr>${rows.map((r) => `<tr><td>${escapeHtml(r.name)}</td><td class="date">${escapeHtml(r.start)}</td><td class="date">${escapeHtml(r.end)}</td><td><span class="tag">${escapeHtml(r.type)}</span></td></tr>`).join("")}</table>`
+        ? `<table class="list"><tr><th>Περίοδος</th><th>Από</th><th>Έως</th><th class="wide-only"></th></tr>${rows.map((r) => `<tr><td>${escapeHtml(r.name)}</td><td class="date">${escapeHtml(r.start)}</td><td class="date">${escapeHtml(r.end)}</td><td class="wide-only"><span class="tag">${escapeHtml(r.type)}</span></td></tr>`).join("")}</table>`
         : '<p class="muted">Καμία περίοδος.</p>';
     return layout("Περίοδοι", `<div class="wrap">
 ${header(user, csrf, "/periods")}
@@ -320,6 +372,7 @@ ${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Ισχύει ή�
   <button class="primary" type="submit" name="action" value="save">Αποθήκευση</button>
 </div>
 </form>
+${footer()}
 </div>`);
 }
 
@@ -338,6 +391,7 @@ ${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Ισχύει α�
 <p class="muted">Αποθηκεύεται στο <code>data/faculty-emails.txt</code> στον server. Όσοι έχουν ήδη επαληθευτεί κρατούν τον ρόλο τους.</p>
 <div class="actions"><a class="button ghost" href="/faculty">Ακύρωση</a><button class="primary" type="submit">Αποθήκευση</button></div>
 </form>
+${footer()}
 </div>`);
 }
 
@@ -361,7 +415,7 @@ function statsPage({ user, csrf, view }) {
     } else {
         const stat = (value, label) => `<div class="stat"><b>${escapeHtml(value)}</b><span>${escapeHtml(label)}</span></div>`;
         const max = Math.max(1, ...view.groups.map((g) => g.count));
-        const periodRows = view.groups.map((g) => `<tr><td>${escapeHtml(g.name)}</td><td class="date">${escapeHtml(g.range)}</td><td class="num">${nf(g.count)}</td><td class="bar"><progress max="${max}" value="${g.count}"></progress></td></tr>`).join("");
+        const periodRows = view.groups.map((g) => `<tr><td>${escapeHtml(g.name)}</td><td class="date">${escapeHtml(g.range)}</td><td class="num">${nf(g.count)}</td><td class="bar wide-only"><progress max="${max}" value="${g.count}"></progress></td></tr>`).join("");
         const topRows = view.top.map((c) => `<tr><td>#${escapeHtml(c.name)}</td><td class="num">${nf(c.count)}</td></tr>`).join("");
         body = `<div class="card">
   <div class="grid">
@@ -373,7 +427,7 @@ function statsPage({ user, csrf, view }) {
 </div>
 <div class="card"><h2>Ανά ημέρα</h2><img class="chart" src="${escapeHtml(view.chartUrl)}" alt="Γράφημα μηνυμάτων ανά ημέρα"></div>
 <div class="two">
-  <div class="card"><h2>Ανά περίοδο</h2>${periodRows ? `<table class="list"><tr><th>Περίοδος</th><th>Ημερομηνίες</th><th>Μηνύματα</th><th></th></tr>${periodRows}</table>` : '<p class="muted">Δεν έχουν οριστεί περίοδοι.</p>'}</div>
+  <div class="card"><h2>Ανά περίοδο</h2>${periodRows ? `<table class="list"><tr><th>Περίοδος</th><th>Ημερομηνίες</th><th>Μηνύματα</th><th class="wide-only"></th></tr>${periodRows}</table>` : '<p class="muted">Δεν έχουν οριστεί περίοδοι.</p>'}</div>
   ${view.channelId ? "" : `<div class="card"><h2>Πιο ενεργά κανάλια</h2>${topRows ? `<table class="list"><tr><th>Κανάλι</th><th>Μηνύματα</th></tr>${topRows}</table>` : '<p class="muted">Καμία καταμέτρηση.</p>'}</div>`}
 </div>
 <div class="actions"><a class="button ghost" href="${escapeHtml(view.csvUrl)}">Λήψη CSV</a></div>`;
@@ -382,7 +436,8 @@ function statsPage({ user, csrf, view }) {
 ${header(user, csrf, "/stats")}
 ${controls}
 ${body}
+${footer()}
 </div>`);
 }
 
-module.exports = { CSS, escapeHtml, statsPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };
+module.exports = { CSS, FAVICON_SVG, escapeHtml, statsPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };

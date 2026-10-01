@@ -35,6 +35,8 @@ const SECURITY_HEADERS = {
     "Strict-Transport-Security": "max-age=15552000",
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cache-Control": "no-store",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    "X-Robots-Tag": "noindex, nofollow",
 };
 
 // At most `limit` requests per IP per window, for the login routes.
@@ -131,7 +133,10 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
     // Runs page(who) for logged-in panel users; otherwise login or 403.
     async function withUser(req, res, page) {
         const who = await currentUser(req);
-        if (who.state === "anonymous") return redirect(res, "/login");
+        if (who.state === "anonymous") {
+            const hadSession = session.SESSION_COOKIE in session.parseCookies(req.headers.cookie);
+            return redirect(res, hadSession ? "/login?n=expired" : "/login", hadSession ? [session.clearCookie(session.SESSION_COOKIE)] : []);
+        }
         if (who.state === "forbidden") return send(res, 403, pages.forbiddenPage(), { "Set-Cookie": [session.clearCookie(session.SESSION_COOKIE)] });
         const u = who.member.user;
         return page({ ...who, user: { id: u.id, username: u.username, globalName: u.globalName, avatar: u.avatar } });
@@ -288,13 +293,52 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
         }));
     }
 
+    const CHANGE_LABELS = new Map([
+        ...settings.DEFINITIONS.map((d) => [d.key, `Ρύθμιση: ${d.label}`]),
+        ["verify_info", "Μήνυμα επαλήθευσης"],
+        ["periods", "Περίοδοι"],
+    ]);
+
+    // Latest panel saves (current overrides only; a reset removes the row).
+    async function recentChanges() {
+        let rows;
+        try {
+            rows = await pool.query(
+                `SELECT setting_key AS k, updated_by AS who, updated_at AS at FROM settings
+                 UNION ALL SELECT text_key, updated_by, updated_at FROM texts
+                 ORDER BY at DESC LIMIT 6`,
+            );
+        } catch {
+            return [];
+        }
+        const g = await guild();
+        const out = [];
+        for (const row of rows || []) {
+            if (!row || !row.k) continue;
+            let who = "άγνωστος";
+            if (row.who) {
+                const member = await g.members.fetch(row.who).catch(() => null);
+                who = member ? (member.displayName || member.user.globalName || member.user.username) : row.who;
+            }
+            const at = row.at ? new Date(row.at) : null;
+            out.push({
+                what: CHANGE_LABELS.get(row.k) ?? row.k,
+                who,
+                when: at && !Number.isNaN(at.getTime()) ? at.toLocaleString("el-GR", { timeZone: "Europe/Athens", dateStyle: "short", timeStyle: "short" }) : "",
+            });
+        }
+        return out;
+    }
+
     const routes = {
         "GET /panel.css": async (req, res) => send(res, 200, pages.CSS, { "Content-Type": "text/css; charset=utf-8", "Cache-Control": "public, max-age=3600" }),
 
-        "GET /login": async (req, res) => {
+        "GET /favicon.svg": async (req, res) => send(res, 200, pages.FAVICON_SVG, { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" }),
+
+        "GET /login": async (req, res, ip, url) => {
             const who = await currentUser(req);
             if (who.state === "ok") return redirect(res, "/");
-            return send(res, 200, pages.loginPage());
+            return send(res, 200, pages.loginPage(url.searchParams.get("n")));
         },
 
         "GET /auth/start": async (req, res, ip) => {
@@ -307,7 +351,7 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
         "GET /auth/callback": async (req, res, ip, url) => {
             if (!loginLimit(ip)) return send(res, 429, pages.messagePage("Πολλές προσπάθειες", "Δοκιμάστε ξανά σε λίγα λεπτά."));
             const clearState = session.clearCookie(session.STATE_COOKIE);
-            if (url.searchParams.get("error")) return redirect(res, "/login", [clearState]);
+            if (url.searchParams.get("error")) return redirect(res, "/login?n=cancelled", [clearState]);
 
             const cookies = session.parseCookies(req.headers.cookie);
             const saved = session.verify(config.sessionSecret, cookies[session.STATE_COOKIE]);
@@ -337,11 +381,11 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
             if (!data || !sameOrigin(req, origin) || !session.safeEqual(form.get("csrf") || "", data.csrf)) {
                 return send(res, 403, pages.messagePage("Μη έγκυρο αίτημα", "Ανανεώστε τη σελίδα και δοκιμάστε ξανά.", '<a class="button ghost" href="/">Αρχική</a>'));
             }
-            return redirect(res, "/login", [session.clearCookie(session.SESSION_COOKIE)]);
+            return redirect(res, "/login?n=out", [session.clearCookie(session.SESSION_COOKIE)]);
         },
 
         "GET /": async (req, res) => withUser(req, res, async (who) =>
-            send(res, 200, pages.dashboardPage({ user: who.user, csrf: who.csrf, info: await overview() }))),
+            send(res, 200, pages.dashboardPage({ user: who.user, csrf: who.csrf, info: await overview(), recent: await recentChanges() }))),
 
         "GET /settings": async (req, res, ip, url) => withUser(req, res, (who) =>
             renderSettings(res, who, { saved: url.searchParams.get("saved") === "1" })),

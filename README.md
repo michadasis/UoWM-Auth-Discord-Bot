@@ -270,6 +270,8 @@ settings and texts.
   was created and for the whole server or one channel: totals, average per day, messages per
   period, the most active channels, the daily chart (`/stats/chart.png`) and the CSV download
   (`/stats/activity.csv`). Like the command, it only lists channels the logged-in member can see.
+- **Layout:** works on phones (single column, wrapping tabs, scrollable chart and tables) and
+  desktops. The home page lists the latest changes saved from the panel.
 - **TLS:** the bot serves HTTPS itself with `PANEL_CERT_FILE` and `PANEL_KEY_FILE` (certificate with
   its chain, and key). It reloads them within an hour when the files change, so a renewed
   certificate needs no restart.

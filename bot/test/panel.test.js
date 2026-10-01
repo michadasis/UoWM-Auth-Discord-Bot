@@ -148,3 +148,18 @@ test("config: off without PANEL_PORT, strict about the rest", () => {
     assert.throws(() => loadConfig({ ...env, PANEL_URL: "http://panel.example.com" }, c));
     assert.throws(() => loadConfig({ ...env, DISCORD_CLIENT_SECRET: "" }, c));
 });
+
+test("polish: favicon, login notes and extra security headers", async () => {
+    const icon = await get("/favicon.svg");
+    assert.equal(icon.status, 200);
+    assert.match(icon.headers.get("content-type"), /image\/svg\+xml/);
+    assert.match(await (await get("/login?n=out")).text(), /Αποσυνδεθήκατε/);
+    assert.match(await (await get("/login?n=cancelled")).text(), /ακυρώθηκε/);
+    assert.doesNotMatch(await (await get("/login?n=<script>")).text(), /<script>/);
+    const page = await get("/login");
+    assert.match(page.headers.get("permissions-policy"), /camera=\(\)/);
+    assert.equal(page.headers.get("x-robots-tag"), "noindex, nofollow");
+    // An expired session cookie leads to the "expired" note.
+    const expired = `${session.SESSION_COOKIE}=${session.sign(SECRET, { uid: ADMIN, csrf: "c", exp: Date.now() - 1 })}`;
+    assert.equal((await get("/", expired)).headers.get("location"), "/login?n=expired");
+});
