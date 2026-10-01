@@ -95,7 +95,13 @@ test("verify text: opens with the file text, previews without saving, saves, res
     assert.match(await preview.text(), /@Φοιτητής/);
     assert.equal(table.size, 0);
 
-    const saved = await post("/verify-text", { action: "save", template: "# Νέο {Φοιτητής}" });
+    // A changed text reposts the message with pings, so it needs the confirmation box.
+    const unconfirmed = await post("/verify-text", { action: "save", template: "# Νέο {Φοιτητής}" });
+    assert.equal(unconfirmed.status, 400);
+    assert.match(await unconfirmed.text(), /ping/);
+    assert.equal(table.size, 0);
+
+    const saved = await post("/verify-text", { action: "save", template: "# Νέο {Φοιτητής}", confirm: "1" });
     assert.equal(saved.status, 303);
     assert.equal(table.get("verify_info"), "# Νέο {Φοιτητής}");
     assert.equal(texts.getText("verify_info"), "# Νέο {Φοιτητής}");
@@ -108,7 +114,7 @@ test("verify text: opens with the file text, previews without saving, saves, res
 
 test("verify text: unknown placeholders and too long texts are refused", async () => {
     for (const template of ["{Φοιτητες}", "x".repeat(2001), "   "]) {
-        const res = await post("/verify-text", { action: "save", template });
+        const res = await post("/verify-text", { action: "save", template, confirm: "1" });
         assert.equal(res.status, 400);
         assert.match(await res.text(), /Δεν αποθηκεύτηκε τίποτα/);
     }

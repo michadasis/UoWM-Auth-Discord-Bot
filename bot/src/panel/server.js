@@ -26,6 +26,8 @@ const { loadEmailConfig } = require("../lib/config");
 const { renderDiscord } = require("./discordPreview");
 const { toLines, fromLines } = require("./periodLines");
 const { readFacultyFile, checkFacultyText, writeFacultyFile } = require("./facultyFile");
+const panelLog = require("../lib/panelLog");
+const { healthChecks } = require("./health");
 
 const SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; style-src 'self'; img-src 'self' https://cdn.discordapp.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
@@ -149,6 +151,17 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
         return send(res, status, pages.settingsPage({ user: who.user, csrf: who.csrf, settings: await settings.listSettings(pool), ...guildOptions(g), ...extra }));
     }
 
+    // Like describeValue, but with names instead of mentions, for the panel's history.
+    function plainValue(g, def, value) {
+        if (value === null || value === undefined || value === "") return "κενό";
+        const role = (id) => `@${g.roles.cache.get(id)?.name ?? id}`;
+        if (def.type === "role") return role(value);
+        if (def.type === "roles") return value.split(",").map(role).join(", ");
+        if (def.type === "channel") return `#${g.channels.cache.get(value)?.name ?? value}`;
+        if (def.type === "lines") return value.split("\n").join(" / ");
+        return String(value);
+    }
+
     function describeValue(g, def, value) {
         if (value === null || value === undefined || value === "") return "κενό";
         if (def.type === "role") return `<@&${value}>`;
@@ -178,7 +191,11 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
         return form;
     }
 
-    const logChange = (who, title, text) => adminLog(client, new EmbedBuilder().setColor(colors.blue).setTitle(title).setDescription(`**Από:** <@${who.user.id}>\n${text}`));
+    // Every panel change goes to the admin log in Discord and to the panel's own history.
+    const logChange = async (who, title, text) => {
+        await adminLog(client, new EmbedBuilder().setColor(colors.blue).setTitle(title).setDescription(`**Από:** <@${who.user.id}>\n${text}`));
+        await panelLog.addEntry(pool, who.user.id, title, text);
+    };
 
     async function renderVerifyText(res, who, { template, errors = [], saved = false, previewed = false }, status = 200) {
         const fromPanel = texts.getText("verify_info") !== null;
@@ -293,41 +310,19 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
         }));
     }
 
-    const CHANGE_LABELS = new Map([
-        ...settings.DEFINITIONS.map((d) => [d.key, `Ρύθμιση: ${d.label}`]),
-        ["verify_info", "Μήνυμα επαλήθευσης"],
-        ["periods", "Περίοδοι"],
-    ]);
+    const formatWhen = (at) => (at && !Number.isNaN(at.getTime()) ? at.toLocaleString("el-GR", { timeZone: "Europe/Athens", dateStyle: "short", timeStyle: "short" }) : "");
 
-    // Latest panel saves (current overrides only; a reset removes the row).
-    async function recentChanges() {
-        let rows;
-        try {
-            rows = await pool.query(
-                `SELECT setting_key AS k, updated_by AS who, updated_at AS at FROM settings
-                 UNION ALL SELECT text_key, updated_by, updated_at FROM texts
-                 ORDER BY at DESC LIMIT 6`,
-            );
-        } catch {
-            return [];
-        }
+    // Latest panel changes, with the names of who made them.
+    async function recentChanges(limit = 8) {
+        const entries = await panelLog.recentEntries(pool, limit);
+        if (!entries.length) return [];
         const g = await guild();
-        const out = [];
-        for (const row of rows || []) {
-            if (!row || !row.k) continue;
-            let who = "άγνωστος";
-            if (row.who) {
-                const member = await g.members.fetch(row.who).catch(() => null);
-                who = member ? (member.displayName || member.user.globalName || member.user.username) : row.who;
-            }
-            const at = row.at ? new Date(row.at) : null;
-            out.push({
-                what: CHANGE_LABELS.get(row.k) ?? row.k,
-                who,
-                when: at && !Number.isNaN(at.getTime()) ? at.toLocaleString("el-GR", { timeZone: "Europe/Athens", dateStyle: "short", timeStyle: "short" }) : "",
-            });
+        const names = new Map();
+        for (const id of new Set(entries.map((e) => e.userId))) {
+            const member = await g.members.fetch(id).catch(() => null);
+            names.set(id, member ? member.displayName || member.user.globalName || member.user.username : id);
         }
-        return out;
+        return entries.map((e) => ({ area: e.area, summary: e.summary.replace(/\*\*/g, ""), who: names.get(e.userId), when: formatWhen(e.at) }));
     }
 
     const routes = {
@@ -385,7 +380,13 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
         },
 
         "GET /": async (req, res) => withUser(req, res, async (who) =>
-            send(res, 200, pages.dashboardPage({ user: who.user, csrf: who.csrf, info: await overview(), recent: await recentChanges() }))),
+            send(res, 200, pages.dashboardPage({
+                user: who.user, csrf: who.csrf, info: await overview(), recent: await recentChanges(6),
+                health: await healthChecks({ guild: await guild(), pool, certFile: config.certFile }).catch((err) => [{ status: "warn", text: `Οι έλεγχοι απέτυχαν: ${err.message}` }]),
+            }))),
+
+        "GET /history": async (req, res) => withUser(req, res, async (who) =>
+            send(res, 200, pages.historyPage({ user: who.user, csrf: who.csrf, entries: await recentChanges(100) }))),
 
         "GET /settings": async (req, res, ip, url) => withUser(req, res, (who) =>
             renderSettings(res, who, { saved: url.searchParams.get("saved") === "1" })),
@@ -432,8 +433,11 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
             const template = String(form.get("template") ?? "").replace(/\r\n/g, "\n").replace(/\s+$/, "");
             if (action === "preview") return renderVerifyText(res, who, { template, previewed: true });
             const errors = checkTemplate(template);
-            if (errors.length) return renderVerifyText(res, who, { template, errors }, 400);
             const before = texts.getText("verify_info") ?? toTemplate(fileText());
+            if (template !== before && form.get("confirm") !== "1") {
+                errors.push("Επιβεβαιώστε ότι το μήνυμα θα ξανασταλεί με ping σε όλους, τσεκάροντας το κουτί δίπλα στην Αποθήκευση.");
+            }
+            if (errors.length) return renderVerifyText(res, who, { template, errors }, 400);
             if (template !== before || texts.getText("verify_info") === null) {
                 await texts.setText(pool, "verify_info", template, who.user.id);
                 await logChange(who, "Μήνυμα επαλήθευσης", `Το κείμενο άλλαξε (${renderTemplate(template).length} χαρακτήρες).`);
@@ -504,6 +508,11 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
                     return `**${def.label}:** ${describeValue(g, def, def.value)} → ${after}`;
                 });
                 console.log(`Panel: ${who.user.id} changed ${changes.map((c) => c.key).join(", ")}`);
+                for (const c of changes) {
+                    const def = byKey.get(c.key);
+                    const after = c.value === null ? `${plainValue(g, def, def.envValue)} (από .env)` : plainValue(g, def, c.value);
+                    await panelLog.addEntry(pool, who.user.id, "Ρυθμίσεις", `${def.label}: ${plainValue(g, def, def.value)} → ${after}`);
+                }
                 await adminLog(client, new EmbedBuilder()
                     .setColor(colors.blue)
                     .setTitle("Αλλαγή ρυθμίσεων από τον πίνακα")

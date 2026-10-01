@@ -93,7 +93,17 @@ nav.tabs a:hover { color:var(--white); text-decoration:none; }
 .recent li:first-child { border-top:0; }
 .recent .when { color:var(--muted); white-space:nowrap; }
 footer.foot { margin-top:36px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:12.5px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-.actions { flex-wrap:wrap; }
+.actions { flex-wrap:wrap; align-items:center; }
+.actions.sticky { position:sticky; bottom:0; z-index:5; margin:16px -4px 0; padding:12px 4px; background:linear-gradient(to top, var(--bg) 70%, rgba(30,31,34,0)); }
+.confirm { display:flex; gap:8px; align-items:center; margin-right:auto; color:var(--muted); font-size:14px; }
+.health { list-style:none; margin:0; padding:0; }
+.health li { display:flex; gap:10px; align-items:flex-start; padding:9px 0; border-top:1px solid var(--line); font-size:14px; }
+.health li:first-child { border-top:0; }
+.dot { width:10px; height:10px; border-radius:50%; margin-top:6px; flex-shrink:0; }
+.dot.ok { background:var(--teal); } .dot.warn { background:var(--orange); } .dot.err { background:var(--crimson); }
+.health a { margin-left:auto; white-space:nowrap; font-size:13px; }
+.card .more { display:inline-block; margin-top:10px; font-size:14px; }
+.area { font-weight:600; color:var(--white); }
 @media (max-width:640px) {
   .field { grid-template-columns:1fr; }
   .wrap { padding:16px 12px 32px; }
@@ -194,12 +204,31 @@ function header(user, csrf, active) {
 <nav class="tabs">${tabs}</nav>`;
 }
 
+// [{ area, summary, who, when }] as a list.
+const recentList = (items) => `<ul class="recent">${items.map((r) => `<li><span><span class="area">${escapeHtml(r.area)}</span> ${escapeHtml(r.summary)} <span class="muted">· ${escapeHtml(r.who)}</span></span><span class="when">${escapeHtml(r.when)}</span></li>`).join("")}</ul>`;
+
+function historyPage({ user, csrf, entries }) {
+    return layout("Ιστορικό", `<div class="wrap">
+${header(user, csrf, "/")}
+<div class="card">
+  <h2>Ιστορικό αλλαγών</h2>
+  ${entries.length ? recentList(entries) : '<p class="muted">Καμία αλλαγή ακόμα.</p>'}
+  <p class="count">Οι 100 πιο πρόσφατες αλλαγές από τον πίνακα.</p>
+</div>
+${footer()}
+</div>`);
+}
+
 // user: { id, username, globalName, avatar }. info: numbers for the overview.
 // recent: [{ what, who, when }] latest panel changes.
-function dashboardPage({ user, csrf, info, recent = [] }) {
+function dashboardPage({ user, csrf, info, recent = [], health = [] }) {
     const stat = (value, label) => `<div class="stat"><b>${escapeHtml(typeof value === "number" ? value.toLocaleString("el-GR") : value)}</b><span>${escapeHtml(label)}</span></div>`;
     return layout("Πίνακας", `<div class="wrap">
 ${header(user, csrf, "/")}
+<div class="card">
+  <h2>Κατάσταση</h2>
+  <ul class="health">${health.map((c) => `<li><span class="dot ${escapeHtml(c.status)}"></span><span>${escapeHtml(c.text)}</span>${c.href ? `<a href="${escapeHtml(c.href)}">Διόρθωση</a>` : ""}</li>`).join("")}</ul>
+</div>
 <div class="card">
   <h2>Μέλη</h2>
   <div class="grid">
@@ -221,7 +250,7 @@ ${header(user, csrf, "/")}
 <div class="card">
   <h2>Πρόσφατες αλλαγές από τον πίνακα</h2>
   ${recent.length
-        ? `<ul class="recent">${recent.map((r) => `<li><span>${escapeHtml(r.what)} <span class="muted">· ${escapeHtml(r.who)}</span></span><span class="when">${escapeHtml(r.when)}</span></li>`).join("")}</ul>`
+        ? `${recentList(recent)}<a class="more" href="/history">Όλο το ιστορικό</a>`
         : '<p class="muted">Καμία αλλαγή ακόμα. Ό,τι αλλάζει από τις ρυθμίσεις και τα κείμενα εμφανίζεται εδώ.</p>'}
 </div>
 ${footer()}
@@ -295,7 +324,7 @@ ${banner}
 <input type="hidden" name="csrf" value="${escapeHtml(csrf)}">
 ${cards}
 <p class="muted">Ό,τι αλλάξετε εδώ υπερισχύει του .env. Αλλαγές σε ρόλους που αναφέρονται στο μήνυμα του #επαλήθευση το ξαναστέλνουν (με ping).</p>
-<div class="actions"><a class="button ghost" href="/settings">Ακύρωση</a><button class="primary" type="submit">Αποθήκευση</button></div>
+<div class="actions sticky"><a class="button ghost" href="/settings">Ακύρωση</a><button class="primary" type="submit">Αποθήκευση</button></div>
 </form>
 ${footer()}
 </div>`);
@@ -332,8 +361,9 @@ ${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Το μήνυμ�
   </div>
 </div>
 <p class="muted">${sourceNote(fromPanel, "bot/src/lib/privacyNotice.js")} Κάθε αποθήκευση που αλλάζει το κείμενο ξαναστέλνει το μήνυμα με ping σε όλους.</p>
-<div class="actions">
+<div class="actions sticky">
   ${fromPanel ? '<button class="ghost" type="submit" name="action" value="reset">Επαναφορά στο αρχείο</button>' : ""}
+  <label class="confirm"><input type="checkbox" name="confirm" value="1"> Θα ξανασταλεί με ping σε όλους</label>
   <button class="ghost" type="submit" name="action" value="preview">Προεπισκόπηση</button>
   <button class="primary" type="submit" name="action" value="save">Αποθήκευση</button>
 </div>
@@ -366,7 +396,7 @@ ${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Ισχύει ή�
   </div>
 </div>
 <p class="muted">${sourceNote(fromPanel, "data/periods.json")} Οι ημέρες μετρούν στην πιο συγκεκριμένη περίοδο (π.χ. τα Χριστούγεννα μέσα στο χειμερινό). Τα χρώματα του γραφήματος βγαίνουν από τα ονόματα: Διακοπές, Διάλειμμα, Καλοκαίρι, Εξεταστική.</p>
-<div class="actions">
+<div class="actions sticky">
   ${fromPanel ? '<button class="ghost" type="submit" name="action" value="reset">Επαναφορά στο αρχείο</button>' : ""}
   <button class="ghost" type="submit" name="action" value="preview">Προεπισκόπηση</button>
   <button class="primary" type="submit" name="action" value="save">Αποθήκευση</button>
@@ -389,7 +419,7 @@ ${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Ισχύει α�
   <div class="count">${count} διευθύνσεις</div>
 </div>
 <p class="muted">Αποθηκεύεται στο <code>data/faculty-emails.txt</code> στον server. Όσοι έχουν ήδη επαληθευτεί κρατούν τον ρόλο τους.</p>
-<div class="actions"><a class="button ghost" href="/faculty">Ακύρωση</a><button class="primary" type="submit">Αποθήκευση</button></div>
+<div class="actions sticky"><a class="button ghost" href="/faculty">Ακύρωση</a><button class="primary" type="submit">Αποθήκευση</button></div>
 </form>
 ${footer()}
 </div>`);
@@ -440,4 +470,4 @@ ${footer()}
 </div>`);
 }
 
-module.exports = { CSS, FAVICON_SVG, escapeHtml, statsPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };
+module.exports = { CSS, FAVICON_SVG, escapeHtml, statsPage, historyPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };

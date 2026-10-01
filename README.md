@@ -280,7 +280,14 @@ settings and texts.
   period, the most active channels, the daily chart (`/stats/chart.png`) and the CSV download
   (`/stats/activity.csv`). Like the command, it only lists channels the logged-in member can see.
 - **Layout:** works on phones (single column, wrapping tabs, scrollable chart and tables) and
-  desktops. The home page lists the latest changes saved from the panel.
+  desktops. Long forms keep their buttons at the bottom of the screen.
+- **Home page checks:** the bot's Manage Roles permission and role position, roles that no longer
+  exist, missing log and semester channels, whether `/post-verify-info` has been run, and the HTTPS
+  certificate's expiry (warning from 21 days before), each with a link to the fix where there is one.
+- **History:** every save and reset from the panel is kept in the `panel_log` table (who, what,
+  when, old and new values for settings). The home page shows the latest and `/history` the last 100.
+- **Ping confirmation:** saving a changed verify message requires ticking "Θα ξανασταλεί με ping σε
+  όλους", since it reposts with pings.
 - **TLS:** the bot serves HTTPS itself with `PANEL_CERT_FILE` and `PANEL_KEY_FILE` (certificate with
   its chain, and key). It reloads them within an hour when the files change, so a renewed
   certificate needs no restart.
