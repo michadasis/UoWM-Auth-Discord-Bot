@@ -2,7 +2,7 @@ const { test, before, after, beforeEach } = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("http");
 
-for (const k of ["STUDENT_ROLE_ID", "PROFESSOR_ROLE_ID", "STAFF_ROLE_ID", "GUEST_ROLE_ID", "SEMESTER_ROLE_IDS", "SEMESTER_ALLOWED_ROLE_IDS", "ADMIN_CHANNEL_ID", "GUEST_CHANNEL_ID", "BOT_STATUS"]) delete process.env[k];
+for (const k of ["STUDENT_ROLE_ID", "PROFESSOR_ROLE_ID", "STAFF_ROLE_ID", "GUEST_ROLE_ID", "SEMESTER_ROLE_IDS", "SEMESTER_ALLOWED_ROLE_IDS", "ADMIN_CHANNEL_ID", "GUEST_CHANNEL_ID", "BOT_STATUS", "BOT_STATUS_INTERVAL"]) delete process.env[k];
 process.env.ADMIN_ROLE_ID = "r-admin";
 process.env.MODERATOR_ROLE_ID = "r-mod";
 process.env.STUDENT_ROLE_ID = "r-student"; // the .env value
@@ -117,6 +117,9 @@ test("invalid choices are refused and nothing is saved", async () => {
         { SEMESTER_ROLE_IDS: ["r-a", "nope"] },
         { ADMIN_CHANNEL_ID: "c-locked" },     // bot cannot send there
         { BOT_STATUS: "x".repeat(200) },
+        { BOT_STATUS: "ok\n" + "y".repeat(129) },   // one line too long
+        { BOT_STATUS_INTERVAL: "0" },
+        { BOT_STATUS_INTERVAL: "2.5" },
         { STUDENT_ROLE_ID: "r-student2", ADMIN_CHANNEL_ID: "missing" }, // one bad field blocks all
     ]) {
         const res = await save(form(fields));
@@ -127,6 +130,13 @@ test("invalid choices are refused and nothing is saved", async () => {
     // Roles that are only checked (not assigned) may sit above the bot.
     assert.equal((await save(form({ ADMIN_ROLE_ID: "r-high" }))).status, 303);
     assert.equal(process.env.ADMIN_ROLE_ID, "r-high");
+});
+
+test("several statuses and an interval can be saved", async () => {
+    const res = await save(form({ BOT_STATUS: "/auth για πρόσβαση στις σημειώσεις\r\n\r\nCompeting in Εξεταστική\nWatching τα deadlines", BOT_STATUS_INTERVAL: "3" }));
+    assert.equal(res.status, 303);
+    assert.equal(process.env.BOT_STATUS, "/auth για πρόσβαση στις σημειώσεις\nCompeting in Εξεταστική\nWatching τα deadlines");
+    assert.equal(process.env.BOT_STATUS_INTERVAL, "3");
 });
 
 test("saving needs the CSRF token and a same-origin request", async () => {

@@ -54,6 +54,15 @@ function readSettingsForm(form, settings, guild) {
             const ids = [...new Set(form.getAll(def.key).map((v) => v.trim()).filter(Boolean))];
             ids.forEach((id) => checkRole(guild, id, def, errors));
             value = ids.join(",");
+        } else if (def.type === "lines") {
+            const lines = String(form.get(def.key) ?? "").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+            if (lines.length > (def.maxLines ?? 20)) errors.push(`${def.label}: έως ${def.maxLines} γραμμές.`);
+            lines.forEach((l, i) => { if (l.length > (def.maxLength ?? 200)) errors.push(`${def.label}: η γραμμή ${i + 1} ξεπερνά τους ${def.maxLength} χαρακτήρες.`); });
+            value = lines.join("\n");
+        } else if (def.type === "number") {
+            value = String(form.get(def.key) ?? "").trim();
+            const n = Number(value);
+            if (value && (!Number.isInteger(n) || n < def.min || n > def.max)) errors.push(`${def.label}: ακέραιος από ${def.min} έως ${def.max}.`);
         } else if (def.type === "text") {
             value = String(form.get(def.key) ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim();
             if (value.length > (def.maxLength ?? 200)) errors.push(`${def.label}: έως ${def.maxLength} χαρακτήρες.`);

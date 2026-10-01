@@ -14,7 +14,8 @@ const DEFINITIONS = [
     { key: "SEMESTER_ALLOWED_ROLE_IDS", type: "roles", group: "semesters", label: "Ποιοι μπορούν να έχουν εξάμηνα", help: "Κανένας επιλεγμένος σημαίνει μόνο ο ρόλος Φοιτητής." },
     { key: "ADMIN_CHANNEL_ID", type: "channel", group: "channels", label: "Κανάλι καταγραφής", help: "Ιδιωτικό κανάλι για Admins και Moderators." },
     { key: "GUEST_CHANNEL_ID", type: "channel", group: "channels", label: "Κανάλι προσωρινών αδειών", help: "Καταγραφή των προσωρινών αδειών." },
-    { key: "BOT_STATUS", type: "text", group: "bot", label: "Κατάσταση bot", help: "Το κείμενο κάτω από το όνομα του bot.", maxLength: 128 },
+    { key: "BOT_STATUS", type: "lines", group: "bot", label: "Κατάσταση bot", help: "Μία ανά γραμμή, εμφανίζονται με τη σειρά. Ξεκινήστε με Playing, Watching, Listening to ή Competing in για τον αντίστοιχο τύπο. Αλλιώς εμφανίζεται ως έχει.", maxLength: 128, maxLines: 20 },
+    { key: "BOT_STATUS_INTERVAL", type: "number", group: "bot", label: "Αλλαγή κατάστασης κάθε", help: "Λεπτά, όταν υπάρχουν πολλές καταστάσεις. Προεπιλογή 5.", min: 1, max: 1440 },
 ];
 const BY_KEY = new Map(DEFINITIONS.map((d) => [d.key, d]));
 

@@ -41,7 +41,8 @@ nav.tabs a.on { background:var(--card); color:var(--white); border:1px solid var
 .field .help { color:var(--muted); font-size:13px; }
 .field .source { font-size:12px; color:var(--muted); margin-top:4px; }
 .field .source b { color:var(--teal); font-weight:600; }
-select, input[type=text] { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; }
+textarea.small { min-height:110px; }
+select, input[type=text], input[type=number] { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; }
 .checks { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:4px 12px; max-height:220px; overflow:auto; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
 .checks label, .envbox { display:flex; gap:8px; align-items:center; font-size:14px; }
 .envbox { margin-top:6px; color:var(--muted); font-size:13px; }
@@ -194,6 +195,7 @@ function settingsPage({ user, csrf, settings, roles, channels, errors = [], save
         if (s.type === "role") return `@${roleName(value) ?? value}`;
         if (s.type === "channel") return `#${channelName(value) ?? value}`;
         if (s.type === "roles") return value.split(",").map((id) => `@${roleName(id) ?? id}`).join(", ");
+        if (s.type === "lines") return value.split("\n").join(" / ");
         return value;
     };
     const source = (s) => s.source === "panel"
@@ -214,6 +216,12 @@ function settingsPage({ user, csrf, settings, roles, channels, errors = [], save
         }
         if (s.type === "channel") {
             return `<select name="${s.key}"><option value="">(κανένα)</option>${channels.map((c) => `<option value="${escapeHtml(c.id)}"${c.id === s.value ? " selected" : ""}>#${escapeHtml(c.name)}${c.category ? ` (${escapeHtml(c.category)})` : ""}</option>`).join("")}</select>`;
+        }
+        if (s.type === "lines") {
+            return `<textarea class="small" name="${s.key}" rows="5" spellcheck="false">${escapeHtml(s.value)}</textarea>`;
+        }
+        if (s.type === "number") {
+            return `<input type="number" name="${s.key}" min="${s.min}" max="${s.max}" step="1" value="${escapeHtml(s.value)}">`;
         }
         return `<input type="text" name="${s.key}" maxlength="${s.maxLength ?? 200}" value="${escapeHtml(s.value)}">`;
     }

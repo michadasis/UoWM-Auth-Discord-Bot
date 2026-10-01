@@ -1,9 +1,10 @@
-const { Client, GatewayIntentBits, ActivityType } = require("discord.js");
+const { Client, GatewayIntentBits } = require("discord.js");
 const { CommandKit } = require("commandkit");
 const path = require("path");
 const { loadEmailConfig } = require("./lib/config");
 const settings = require("./lib/settings");
 const pool = require("./lib/database");
+const { statusLines, presenceFor, createRotation } = require("./lib/presence");
 
 // Fail fast on missing or invalid email settings instead of at the first /auth.
 try {
@@ -13,13 +14,9 @@ try {
     process.exit(1);
 }
 
-function presence() {
-    return { activities: [{ type: ActivityType.Custom, name: 'status', state: process.env.BOT_STATUS || 'Γράψε /auth για επαλήθευση' }] };
-}
-
 const client = new Client({
-    // Custom status under the bot's name. Set in the client options so it is restored after reconnects.
-    presence: presence(),
+    // Status under the bot's name. Set in the client options so it is restored after reconnects.
+    presence: presenceFor(statusLines(process.env.BOT_STATUS)[0]),
     intents: [
         GatewayIntentBits.Guilds,
         // Privileged: needed for role sync on join/leave/role changes. Enable "Server Members Intent" in the developer portal.
@@ -29,10 +26,11 @@ const client = new Client({
     ],
 });
 
+// Several statuses (one per line in BOT_STATUS) are shown in turn, every BOT_STATUS_INTERVAL minutes.
+const statusRotation = createRotation(client);
+client.once('clientReady', () => statusRotation.restart());
 settings.onChange((key) => {
-    if (key !== 'BOT_STATUS') return;
-    client.options.presence = presence();
-    client.user?.setPresence(presence());
+    if (key === 'BOT_STATUS' || key === 'BOT_STATUS_INTERVAL') statusRotation.restart();
 });
 
 // discord.js renamed "ready" to "clientReady"; CommandKit 0.1.x still listens to "ready" internally
@@ -67,7 +65,7 @@ const commandKit = new CommandKit({
     try {
         await settings.applyStored(pool);
         await require("./lib/texts").loadTexts(pool);
-        client.options.presence = presence();
+        client.options.presence = presenceFor(statusLines(process.env.BOT_STATUS)[0]);
     } catch (err) {
         console.error(`Loading panel settings failed, using .env only: ${err.message}`);
     }

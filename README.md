@@ -243,7 +243,10 @@ settings and texts.
 - **Protection:** CSRF token plus same-origin check on every POST, strict Content-Security-Policy,
   HSTS, no framing, `no-store` caching, and a rate limit on the login routes.
 - **Settings (phase 2):** roles (Φοιτητής, Καθηγητής, Προσωπικό, Προσωρινή άδεια, Admin, Moderator),
-  semester roles, log channels and the bot status, picked from the live server. A saved value is
+  semester roles, log channels and the bot status, picked from the live server. The status takes
+  one line per status, shown in turn every `BOT_STATUS_INTERVAL` minutes (default 5); a line
+  starting with Playing, Watching, Listening to or Competing in becomes that kind of activity, any
+  other line is a custom status. A saved value is
   stored in the `settings` table and overrides `.env`; it applies at once, without a restart, and
   "Επαναφορά στην τιμή του .env" removes the override. The form refuses `@everyone`, bot-managed
   roles, roles above the bot that it has to assign, and channels where the bot cannot post; one

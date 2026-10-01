@@ -149,6 +149,7 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
         if (def.type === "role") return `<@&${value}>`;
         if (def.type === "roles") return value.split(",").map((id) => `<@&${id}>`).join(" ");
         if (def.type === "channel") return `<#${value}>`;
+        if (def.type === "lines") return value.split("\n").map((l) => "`" + l.replace(/`/g, "'") + "`").join(" · ");
         return "`" + value.replace(/`/g, "'") + "`";
     }
 
