@@ -12,6 +12,8 @@ const DEFINITIONS = [
     { key: "MODERATOR_ROLE_ID", type: "role", group: "staff", label: "Moderator", help: "Πρόσβαση στις εντολές διαχείρισης και στον πίνακα." },
     { key: "SEMESTER_ROLE_IDS", type: "roles", group: "semesters", label: "Ρόλοι εξαμήνων", help: "Οι ρόλοι Α έως Η Εξάμηνο.", assigned: true },
     { key: "SEMESTER_ALLOWED_ROLE_IDS", type: "roles", group: "semesters", label: "Ποιοι μπορούν να έχουν εξάμηνα", help: "Κανένας επιλεγμένος σημαίνει μόνο ο ρόλος Φοιτητής." },
+    { key: "SEMESTER_CHANNEL_ID", type: "channel", group: "semesters", label: "Κανάλι επιλογής εξαμήνων", help: "Εδώ γίνεται ping όσων μόλις επαληθεύτηκαν. Κενό: χωρίς ping." },
+    { key: "SEMESTER_PING_SECONDS", type: "number", group: "semesters", label: "Διαγραφή του ping μετά από", help: "Δευτερόλεπτα, αν δεν διαλέξουν εξάμηνο νωρίτερα. Προεπιλογή 5.", min: 1, max: 86400 },
     { key: "ADMIN_CHANNEL_ID", type: "channel", group: "channels", label: "Κανάλι καταγραφής", help: "Ιδιωτικό κανάλι για Admins και Moderators." },
     { key: "GUEST_CHANNEL_ID", type: "channel", group: "channels", label: "Κανάλι προσωρινών αδειών", help: "Καταγραφή των προσωρινών αδειών." },
     { key: "BOT_STATUS", type: "lines", group: "bot", label: "Κατάσταση bot", help: "Μία ανά γραμμή, εμφανίζονται με τη σειρά. Ξεκινήστε με Playing, Watching, Listening to ή Competing in για τον αντίστοιχο τύπο. Αλλιώς εμφανίζεται ως έχει.", maxLength: 128, maxLines: 20 },

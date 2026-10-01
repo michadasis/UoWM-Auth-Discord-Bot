@@ -189,6 +189,15 @@ https://cs.uowm.gr/en/home-page/members-of-the-staff/. The file is read on every
 restart. It is gitignored so staff addresses are not republished in the repository. Staff not on the list can be
 given the role manually.
 
+## Semester ping
+
+When a member gets a role that lets them pick semesters (Φοιτητής after verification, or the guest
+role if `SEMESTER_ALLOWED_ROLE_IDS` includes it) and has no semester yet, the bot mentions them in
+`SEMESTER_CHANNEL_ID` so they know where to go next. The message is deleted as soon as they pick a
+semester, or after `SEMESTER_PING_SECONDS` (default 5) at the latest, so the channel stays empty.
+Pending pings survive restarts. Both settings can be changed in the admin panel. A very short
+delay makes it a "ghost ping": Discord removes the notification badge together with the message.
+
 ## Message statistics
 
 The bot counts messages per day (Greek time) and channel, for `/stats activity`. It stores only the counts: no authors and no
