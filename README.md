@@ -232,8 +232,8 @@ and Read Message History in the channels it should count. Messages sent while th
 ## Admin panel
 
 An optional web panel runs inside the bot process on its own HTTPS port, sharing the Discord client
-and the database. It is off unless `PANEL_PORT` is set. Phases 1 to 3 cover login, an overview page, the
-settings and the texts; statistics follow.
+and the database. It is off unless `PANEL_PORT` is set. It covers login, an overview page, statistics,
+settings and texts.
 
 - **Login:** "Login with Discord" (OAuth2, scope `identify` only). Only the server owner, members
   with Administrator, and members with the Admin or Moderator role get in. The role is checked
@@ -263,6 +263,10 @@ settings and the texts; statistics follow.
   - *Καθηγητές:* edit `data/faculty-emails.txt` directly (it is not in git); every line is checked
     to be an address of the institutional domain, and the file is written atomically.
   Every save is written to the admin log with who made it.
+- **Statistics (phase 4):** the `/stats activity` numbers on a page, for any year since the server
+  was created and for the whole server or one channel: totals, average per day, messages per
+  period, the most active channels, the daily chart (`/stats/chart.png`) and the CSV download
+  (`/stats/activity.csv`). Like the command, it only lists channels the logged-in member can see.
 - **TLS:** the bot serves HTTPS itself with `PANEL_CERT_FILE` and `PANEL_KEY_FILE` (certificate with
   its chain, and key). It reloads them within an hour when the files change, so a renewed
   certificate needs no restart.

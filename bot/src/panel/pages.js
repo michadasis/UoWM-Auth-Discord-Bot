@@ -69,6 +69,16 @@ table.list th { color:var(--muted); font-weight:600; border-top:0; }
 .chip { white-space:nowrap; }
 table.list td.date { white-space:nowrap; }
 .tag { white-space:nowrap; font-size:12px; border-radius:6px; padding:1px 7px; background:var(--bg); border:1px solid var(--line); color:var(--muted); }
+.controls { display:flex; flex-wrap:wrap; gap:12px; align-items:end; }
+.controls label { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--muted); }
+.controls select { min-width:180px; }
+progress { width:100%; min-width:80px; height:8px; appearance:none; border:0; border-radius:4px; background:var(--bg); overflow:hidden; }
+progress::-webkit-progress-bar { background:var(--bg); border-radius:4px; }
+progress::-webkit-progress-value { background:var(--teal); border-radius:4px; }
+progress::-moz-progress-bar { background:var(--teal); border-radius:4px; }
+table.list td.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+table.list td.bar { width:30%; }
+.chart { width:100%; border-radius:10px; display:block; }
 @media (max-width:640px) { .field { grid-template-columns:1fr; } }
 @media (max-width:860px) { .two { grid-template-columns:1fr; } }
 `;
@@ -122,7 +132,7 @@ function avatarUrl(user) {
         : `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(user.id) >> 22n) % 6n)}.png`;
 }
 
-const TABS = [["/", "Αρχική"], ["/settings", "Ρυθμίσεις"], ["/verify-text", "Μήνυμα επαλήθευσης"], ["/periods", "Περίοδοι"], ["/faculty", "Καθηγητές"]];
+const TABS = [["/", "Αρχική"], ["/stats", "Στατιστικά"], ["/settings", "Ρυθμίσεις"], ["/verify-text", "Μήνυμα επαλήθευσης"], ["/periods", "Περίοδοι"], ["/faculty", "Καθηγητές"]];
 
 function header(user, csrf, active) {
     const tabs = TABS.map(([href, label]) => `<a href="${href}"${href === active ? ' class="on"' : ""}>${label}</a>`).join("");
@@ -323,4 +333,48 @@ ${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Ισχύει α�
 </div>`);
 }
 
-module.exports = { CSS, escapeHtml, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };
+const nf = (n) => Number(n).toLocaleString("el-GR");
+
+// view: { year, years, channelId, channels, error, empty, total, dayCount, from, to, groups, top, chartUrl, csvUrl }
+function statsPage({ user, csrf, view }) {
+    const yearOptions = view.years.map((y) => `<option value="${y}"${y === view.year ? " selected" : ""}>${y}</option>`).join("");
+    const channelOptions = view.channels.map((c) => `<option value="${escapeHtml(c.id)}"${c.id === view.channelId ? " selected" : ""}>#${escapeHtml(c.name)}${c.category ? ` (${escapeHtml(c.category)})` : ""}</option>`).join("");
+    const controls = `<div class="card"><form class="controls" method="get" action="/stats">
+  <label>Έτος<select name="year">${yearOptions}</select></label>
+  <label>Κανάλι<select name="channel"><option value="">Όλος ο server</option>${channelOptions}</select></label>
+  <button class="primary" type="submit">Εμφάνιση</button>
+</form></div>`;
+
+    let body;
+    if (view.error) {
+        body = `<div class="banner err">${escapeHtml(view.error)}</div>`;
+    } else if (view.empty) {
+        body = `<div class="card"><p class="muted">${escapeHtml(view.empty)}</p></div>`;
+    } else {
+        const stat = (value, label) => `<div class="stat"><b>${escapeHtml(value)}</b><span>${escapeHtml(label)}</span></div>`;
+        const max = Math.max(1, ...view.groups.map((g) => g.count));
+        const periodRows = view.groups.map((g) => `<tr><td>${escapeHtml(g.name)}</td><td class="date">${escapeHtml(g.range)}</td><td class="num">${nf(g.count)}</td><td class="bar"><progress max="${max}" value="${g.count}"></progress></td></tr>`).join("");
+        const topRows = view.top.map((c) => `<tr><td>#${escapeHtml(c.name)}</td><td class="num">${nf(c.count)}</td></tr>`).join("");
+        body = `<div class="card">
+  <div class="grid">
+    ${stat(nf(view.total), "Μηνύματα")}
+    ${stat(nf(view.dayCount), "Ημέρες με καταμέτρηση")}
+    ${stat(nf(Math.round(view.total / Math.max(1, view.dayCount))), "Μέσος όρος ανά ημέρα")}
+  </div>
+  <p class="count">${escapeHtml(view.from)} έως ${escapeHtml(view.to)}</p>
+</div>
+<div class="card"><h2>Ανά ημέρα</h2><img class="chart" src="${escapeHtml(view.chartUrl)}" alt="Γράφημα μηνυμάτων ανά ημέρα"></div>
+<div class="two">
+  <div class="card"><h2>Ανά περίοδο</h2>${periodRows ? `<table class="list"><tr><th>Περίοδος</th><th>Ημερομηνίες</th><th>Μηνύματα</th><th></th></tr>${periodRows}</table>` : '<p class="muted">Δεν έχουν οριστεί περίοδοι.</p>'}</div>
+  ${view.channelId ? "" : `<div class="card"><h2>Πιο ενεργά κανάλια</h2>${topRows ? `<table class="list"><tr><th>Κανάλι</th><th>Μηνύματα</th></tr>${topRows}</table>` : '<p class="muted">Καμία καταμέτρηση.</p>'}</div>`}
+</div>
+<div class="actions"><a class="button ghost" href="${escapeHtml(view.csvUrl)}">Λήψη CSV</a></div>`;
+    }
+    return layout("Στατιστικά", `<div class="wrap">
+${header(user, csrf, "/stats")}
+${controls}
+${body}
+</div>`);
+}
+
+module.exports = { CSS, escapeHtml, statsPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };
