@@ -59,6 +59,13 @@ test("stats page: totals, periods, top channels without hidden ones, chart and C
     assert.match(html, /#general/);
     assert.doesNotMatch(html, /admin-only/);
     assert.match(html, /\/stats\/chart\.png\?year=2026/);
+    // The chart is inline SVG with the daily counts for the hover marker: -1 before counting began.
+    assert.match(html, /<svg [^>]*class="activity-chart"/);
+    const counts = html.match(/data-counts="([^"]+)"/)[1].split(",").map(Number);
+    assert.equal(counts.length, 365);
+    assert.equal(counts[0], -1);
+    assert.equal(counts[135], 60); // 16 May: 10 + 50 from both channels
+    assert.match(html, /<g class="cursor"/);
     assert.match(html, /\/stats\/activity\.csv\?year=2026/);
 });
 

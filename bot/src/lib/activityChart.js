@@ -57,7 +57,9 @@ function niceMax(value) {
 const dayIndex = (year, day) => Math.round((Date.UTC(year, Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10))) - Date.UTC(year, 0, 1)) / 86400000);
 
 // days: [{ day: "YYYY-MM-DD", count }] inside the year. today: "YYYY-MM-DD", drawn as a marker when in the year.
-function buildActivitySvg({ year, days, periods, today }) {
+// interactive: for the admin panel. Adds the daily counts as data for its script, which moves the
+// "σήμερα" marker to the day under the cursor and shows that day's count.
+function buildActivitySvg({ year, days, periods, today, interactive = false }) {
     const daysInYear = dayIndex(year, `${year}-12-31`) + 1;
     const plotW = WIDTH - PAD.left - PAD.right;
     const plotH = HEIGHT - PAD.top - PAD.bottom;
@@ -89,11 +91,15 @@ function buildActivitySvg({ year, days, periods, today }) {
         parts.push(`<rect x="${(x(dayIndex(year, day)) + (slot - barWidth) / 2).toFixed(2)}" y="${top.toFixed(2)}" width="${barWidth.toFixed(2)}" height="${(PAD.top + plotH - top).toFixed(2)}" fill="${color}"/>`);
     }
 
-    if (today && today.startsWith(`${year}-`)) {
-        const tx = x(dayIndex(year, today) + 0.5);
-        parts.push(`<line x1="${tx}" x2="${tx}" y1="${PAD.top - 4}" y2="${PAD.top + plotH}" stroke="${COLORS.today}" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.7"/>`);
-        const anchor = tx > WIDTH - 90 ? "end" : "middle";
-        parts.push(`<text x="${tx}" y="${PAD.top - 12}" font-size="18" fill="${COLORS.today}" text-anchor="${anchor}">σήμερα</text>`);
+    const hasToday = Boolean(today && today.startsWith(`${year}-`));
+    const tx = hasToday ? x(dayIndex(year, today) + 0.5) : PAD.left;
+    const anchor = tx > WIDTH - 90 ? "end" : "middle";
+    const cursor = `<line x1="${tx}" x2="${tx}" y1="${PAD.top - 4}" y2="${PAD.top + plotH}" stroke="${COLORS.today}" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.7"/>`
+        + `<text x="${tx}" y="${PAD.top - 12}" font-size="18" fill="${COLORS.today}" text-anchor="${anchor}">σήμερα</text>`;
+    if (interactive) {
+        parts.push(`<g class="cursor"${hasToday ? "" : ' visibility="hidden"'} data-home="${hasToday ? tx : ""}">${cursor}</g>`);
+    } else if (hasToday) {
+        parts.push(cursor);
     }
 
     let lx = PAD.left;
@@ -103,6 +109,16 @@ function buildActivitySvg({ year, days, periods, today }) {
         lx += 26 + label.length * 9.6 + 30;
     }
 
+    if (interactive) {
+        // Counts per day of the year; -1 where nothing was counted (before counting began, the future).
+        const counts = new Array(daysInYear).fill(-1);
+        const first = days.length ? dayIndex(year, days[0].day) : daysInYear;
+        const last = hasToday ? dayIndex(year, today) : (days.length ? daysInYear - 1 : -1);
+        for (let i = first; i <= last && i < daysInYear; i++) counts[i] = 0;
+        for (const { day, count } of days) counts[dayIndex(year, day)] = count;
+        const data = `data-year="${year}" data-left="${PAD.left}" data-slot="${slot}" data-plot-right="${WIDTH - PAD.right}" data-counts="${counts.join(",")}"`;
+        return `<svg xmlns="http://www.w3.org/2000/svg" class="activity-chart" viewBox="0 0 ${WIDTH} ${HEIGHT}" font-family="Noto Sans, Segoe UI, system-ui, sans-serif" role="img" aria-label="Μηνύματα ανά ημέρα, ${year}" ${data}>${parts.join("")}</svg>`;
+    }
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" font-family="Noto Sans">${parts.join("")}</svg>`;
 }
 

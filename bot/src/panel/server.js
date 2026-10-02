@@ -135,6 +135,50 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
         };
     }
 
+    // Activity for the home page: the last 30 days of messages and verifications, and the
+    // latest verified members.
+    async function activity() {
+        const today = dayKey(new Date());
+        const days = [];
+        for (let i = 29; i >= 0; i--) days.push(dayKey(new Date(Date.now() - i * 86400000)));
+        const messages = new Map((await dailyTotals(pool, days[0], today).catch(() => [])).map((d) => [d.day, d.count]));
+        const verifiedRows = await pool.query(
+            `SELECT DATE_FORMAT(verified_at, '%Y-%m-%d') AS d, COUNT(*) AS n FROM users
+             WHERE verified_at >= ? GROUP BY d`, [days[0]],
+        ).catch(() => []);
+        const verified = new Map(verifiedRows.filter((r) => r && r.d).map((r) => [r.d, Number(r.n)]));
+        const series = days.map((day) => ({ day, label: shortDay(day), messages: messages.get(day) ?? 0, verified: verified.get(day) ?? 0 }));
+        const last7 = series.slice(-7);
+
+        const latestRows = await pool.query("SELECT discord_user_id, affiliation, verified_at FROM users ORDER BY verified_at DESC LIMIT 6").catch(() => []);
+        const g = await guild();
+        const latest = [];
+        for (const r of latestRows.filter((x) => x && x.discord_user_id)) {
+            const m = await g.members.fetch(r.discord_user_id).catch(() => null);
+            latest.push({
+                id: r.discord_user_id,
+                name: m ? m.displayName : "Άγνωστος χρήστης",
+                username: m?.user.username ?? null,
+                avatar: m?.user.avatar ?? null,
+                affiliation: r.affiliation,
+                when: formatWhen(new Date(r.verified_at)),
+            });
+        }
+        return {
+            series,
+            messagesToday: series[series.length - 1].messages,
+            messages7d: last7.reduce((sum, d) => sum + d.messages, 0),
+            verified7d: last7.reduce((sum, d) => sum + d.verified, 0),
+            latest,
+        };
+    }
+
+    // "Καλημέρα" / "Καλησπέρα" by the time in Greece.
+    function greeting() {
+        const hour = Number(new Date().toLocaleString("en-GB", { timeZone: "Europe/Athens", hour: "2-digit", hour12: false }));
+        return hour >= 5 && hour < 13 ? "Καλημέρα" : "Καλησπέρα";
+    }
+
     // Runs page(who) for logged-in panel users; otherwise login or 403.
     async function withUser(req, res, page) {
         const who = await currentUser(req);
@@ -276,6 +320,7 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
             }
         }
         view.chartUrl = `/stats/chart.png?${statsParams(q.year, q.channelId)}`;
+        view.chartSvg = buildActivitySvg({ year: q.year, days, periods, today: q.today, interactive: true });
         view.csvUrl = `/stats/activity.csv?${statsParams(q.year, q.channelId)}`;
         return view;
     }
@@ -387,7 +432,8 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
 
         "GET /": async (req, res) => withUser(req, res, async (who) =>
             send(res, 200, pages.dashboardPage({
-                user: who.user, csrf: who.csrf, info: await overview(), recent: await recentChanges(6),
+                user: who.user, csrf: who.csrf, info: await overview(), recent: await recentChanges(5),
+                activity: await activity(), greeting: greeting(),
                 health: await healthChecks({ guild: await guild(), pool, certFile: config.certFile }).catch((err) => [{ status: "warn", text: `Οι έλεγχοι απέτυχαν: ${err.message}` }]),
             }))),
 

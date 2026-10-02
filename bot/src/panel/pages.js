@@ -80,6 +80,8 @@ progress::-moz-progress-bar { background:var(--teal); border-radius:4px; }
 table.list td.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
 table.list td.bar { width:30%; }
 .chart { width:100%; border-radius:10px; display:block; }
+.chart-wrap { overflow-x:auto; }
+.activity-chart { width:100%; height:auto; display:block; border-radius:10px; touch-action:pan-y; cursor:crosshair; }
 a:hover { text-decoration:underline; }
 button:hover, .button:hover { filter:brightness(1.12); text-decoration:none; }
 :focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
@@ -109,6 +111,44 @@ input.filter, .toolbar input[type=search] { width:100%; background:var(--bg); co
 .danger { background:transparent; color:#ff8fa8; border:1px solid rgba(224,36,94,.55); padding:6px 12px; font-size:13px; }
 .pager { display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:12px; font-size:14px; }
 .tag.off { color:var(--orange); border-color:rgba(244,161,28,.5); }
+.greet { margin:-4px 0 18px; }
+.greet h1 { margin:0 0 2px; font-size:24px; color:var(--white); }
+.greet p { margin:0; }
+.kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
+.kpi { display:flex; flex-direction:column; gap:2px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; color:var(--text); text-decoration:none; transition:border-color .15s; }
+.kpi:hover { border-color:var(--teal); text-decoration:none; }
+.kpi b { font-size:28px; color:var(--white); line-height:1.15; }
+.kpi .label { font-weight:600; }
+.kpi .sub { color:var(--muted); font-size:13px; }
+.home-grid { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:16px; align-items:start; }
+.home-grid > div { min-width:0; }
+.spark { width:100%; height:64px; display:block; margin:4px 0 12px; }
+.spark-head { display:flex; justify-content:space-between; font-size:14px; font-weight:600; }
+.spark-axis { display:flex; justify-content:space-between; color:var(--muted); font-size:12px; margin-top:-6px; }
+.recent li .person { min-width:0; }
+.quick-search { display:flex; gap:8px; margin-bottom:10px; }
+.quick-search input { flex:1; min-width:0; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; }
+.quick { list-style:none; margin:0; padding:0; }
+.quick li { border-top:1px solid var(--line); }
+.quick li:first-child { border-top:0; }
+.quick a { display:flex; justify-content:space-between; align-items:center; padding:9px 2px; color:var(--text); text-decoration:none; font-size:14px; font-weight:600; }
+.quick a::after { content:"›"; color:var(--muted); font-size:18px; }
+.quick a:hover { color:var(--white); }
+.stacked .recent li { flex-direction:column; gap:2px; }
+.stacked .recent .when { font-size:12.5px; }
+.facts { list-style:none; margin:0; padding:0; }
+.facts li { display:flex; justify-content:space-between; gap:12px; padding:7px 0; border-top:1px solid var(--line); font-size:14px; }
+.facts li:first-child { border-top:0; }
+.facts li span:last-child { text-align:right; }
+@media (max-width:900px) { .home-grid { grid-template-columns:1fr; } .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:640px) {
+  .recent li { flex-direction:column; gap:2px; }
+  .recent .when { white-space:normal; font-size:12.5px; }
+  .person .sub { overflow-wrap:anywhere; }
+  .kpi b { font-size:22px; }
+  .facts li { flex-direction:column; gap:2px; }
+  .facts li span:last-child { text-align:left; }
+}
 .actions.sticky { position:sticky; bottom:0; z-index:5; margin:16px -4px 0; padding:12px 4px; background:linear-gradient(to top, var(--bg) 70%, rgba(30,31,34,0)); }
 .confirm { display:flex; gap:8px; align-items:center; margin-right:auto; color:var(--muted); font-size:14px; }
 .health { list-style:none; margin:0; padding:0; }
@@ -133,7 +173,7 @@ input.filter, .toolbar input[type=search] { width:100%; background:var(--bg); co
   nav.tabs a { padding:6px 10px; font-size:14px; }
   .card { padding:16px 14px; }
   textarea { white-space:pre-wrap; min-height:260px; }
-  .chart { min-width:640px; }
+  .chart, .activity-chart { min-width:640px; }
   .wide-only { display:none; }
   .grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .stat b { font-size:20px; }
@@ -309,37 +349,86 @@ ${footer()}
 
 // user: { id, username, globalName, avatar }. info: numbers for the overview.
 // recent: [{ what, who, when }] latest panel changes.
-function dashboardPage({ user, csrf, info, recent = [], health = [] }) {
-    const stat = (value, label) => `<div class="stat"><b>${escapeHtml(typeof value === "number" ? value.toLocaleString("el-GR") : value)}</b><span>${escapeHtml(label)}</span></div>`;
+// Small bar chart as inline SVG (no script, no style attributes). points: [{ label, value }].
+function sparkBars(points, color, unit) {
+    const max = Math.max(1, ...points.map((p) => p.value));
+    const w = 300 / points.length;
+    const bars = points.map((p, i) => {
+        const h = p.value ? Math.max(2, (p.value / max) * 56) : 1;
+        return `<rect x="${(i * w + w * 0.15).toFixed(1)}" y="${(60 - h).toFixed(1)}" width="${(w * 0.7).toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${p.value ? color : "#3f4147"}"><title>${escapeHtml(p.label)}: ${p.value} ${unit}</title></rect>`;
+    }).join("");
+    return `<svg class="spark" viewBox="0 0 300 60" preserveAspectRatio="none" role="img" aria-label="${escapeHtml(unit)} ανά ημέρα">${bars}</svg>`;
+}
+
+// user, csrf; info: overview numbers; activity: last 30 days; recent: panel changes; health: checks.
+function dashboardPage({ user, csrf, info, activity = null, recent = [], health = [], greeting = "Γεια σου" }) {
+    const n = (v) => Number(v).toLocaleString("el-GR");
+    const problems = health.filter((c) => c.status !== "ok");
+    const share = info.guildMembers ? Math.min(100, Math.round((info.verified / info.guildMembers) * 100)) : 0;
+    const kpi = (value, label, sub, href) => `<a class="kpi" href="${href}"><b>${escapeHtml(value)}</b><span class="label">${escapeHtml(label)}</span><span class="sub">${escapeHtml(sub)}</span></a>`;
+    const a = activity || { series: [], messagesToday: 0, messages7d: 0, verified7d: 0, latest: [] };
+    const latest = a.latest.length
+        ? `<ul class="recent">${a.latest.map((m) => `<li>${personCell(m)}<span class="when">${escapeHtml(AFF_LABELS[m.affiliation] ?? m.affiliation)} · ${escapeHtml(m.when)}</span></li>`).join("")}</ul><a class="more" href="/members">Όλα τα μέλη</a>`
+        : '<p class="muted">Καμία επαλήθευση ακόμα.</p>';
+    const healthList = `<ul class="health">${(problems.length ? problems : health).map((c) => `<li><span class="dot ${escapeHtml(c.status)}"></span><span>${escapeHtml(c.text)}</span>${c.href ? `<a href="${escapeHtml(c.href)}">Διόρθωση</a>` : ""}</li>`).join("")}</ul>`;
+
     return layout("Πίνακας", `<div class="wrap">
 ${header(user, csrf, "/")}
-<div class="card">
-  <h2>Κατάσταση</h2>
-  <ul class="health">${health.map((c) => `<li><span class="dot ${escapeHtml(c.status)}"></span><span>${escapeHtml(c.text)}</span>${c.href ? `<a href="${escapeHtml(c.href)}">Διόρθωση</a>` : ""}</li>`).join("")}</ul>
+<div class="greet">
+  <h1>${escapeHtml(greeting)}, ${escapeHtml(user.globalName || user.username)}</h1>
+  <p class="muted">${problems.length ? `${problems.length === 1 ? "Ένα θέμα θέλει" : `${problems.length} θέματα θέλουν`} την προσοχή σας.` : "Όλα λειτουργούν κανονικά."}</p>
 </div>
-<div class="card">
-  <h2>Μέλη</h2>
-  <div class="grid">
-    ${stat(info.students, "Φοιτητές")}
-    ${stat(info.faculty, "Καθηγητές")}
-    ${stat(info.staff, "Προσωπικό")}
-    ${stat(info.guests, "Προσωρινή άδεια")}
-    ${stat(info.verified, "Σύνολο επαληθευμένων")}
+<div class="kpis">
+  ${kpi(n(info.verified), "Επαληθευμένα μέλη", `+${n(a.verified7d)} τις τελευταίες 7 ημέρες`, "/members")}
+  ${kpi(n(a.messagesToday), "Μηνύματα σήμερα", `${n(a.messages7d)} τις τελευταίες 7 ημέρες`, "/stats")}
+  ${kpi(n(info.guildMembers), "Μέλη στον server", `${share}% επαληθευμένα`, "/members")}
+  ${kpi(n(info.guests), "Προσωρινές άδειες", info.guests ? "ενεργές τώρα" : "καμία ενεργή", "/guests")}
+</div>
+<div class="home-grid">
+  <div>
+    <div class="card">
+      <h2>Τελευταίες 30 ημέρες</h2>
+      <div class="spark-head"><span>Μηνύματα</span><span class="muted">${n(a.series.reduce((s2, d) => s2 + d.messages, 0))}</span></div>
+      ${sparkBars(a.series.map((d) => ({ label: d.label, value: d.messages })), "#4fb8ba", "μηνύματα")}
+      <div class="spark-head"><span>Επαληθεύσεις</span><span class="muted">${n(a.series.reduce((s2, d) => s2 + d.verified, 0))}</span></div>
+      ${sparkBars(a.series.map((d) => ({ label: d.label, value: d.verified })), "#f4a11c", "επαληθεύσεις")}
+      <div class="spark-axis"><span>${escapeHtml(a.series[0]?.label ?? "")}</span><span>σήμερα</span></div>
+    </div>
+    <div class="card">
+      <h2>Πρόσφατες επαληθεύσεις</h2>
+      ${latest}
+    </div>
   </div>
-</div>
-<div class="card">
-  <h2>Bot</h2>
-  <div class="grid">
-    ${stat(info.guildMembers, `Μέλη στο ${info.guildName}`)}
-    ${stat(`${info.ping} ms`, "Ping")}
-    ${stat(info.onlineSince, "Σε λειτουργία από")}
+  <div>
+    <div class="card">
+      <h2>Κατάσταση</h2>
+      ${healthList}
+    </div>
+    <div class="card">
+      <h2>Γρήγορες ενέργειες</h2>
+      <form class="quick-search" method="get" action="/members"><input type="search" name="q" placeholder="Αναζήτηση μέλους..." aria-label="Αναζήτηση μέλους"><button class="ghost" type="submit">Αναζήτηση</button></form>
+      <ul class="quick">
+        <li><a href="/guests">Νέα προσωρινή άδεια</a></li>
+        <li><a href="/verify-text">Επεξεργασία μηνύματος επαλήθευσης</a></li>
+        <li><a href="/stats">Στατιστικά μηνυμάτων</a></li>
+        <li><a href="/settings">Ρυθμίσεις ρόλων και καναλιών</a></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Bot</h2>
+      <ul class="facts">
+        <li><span class="muted">Ping</span><span>${escapeHtml(info.ping)} ms</span></li>
+        <li><span class="muted">Σε λειτουργία από</span><span>${escapeHtml(info.onlineSince)}</span></li>
+        <li><span class="muted">Ανά ιδιότητα</span><span>${n(info.students)} φοιτητές · ${n(info.faculty)} καθηγητές · ${n(info.staff)} προσωπικό</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Πρόσφατες αλλαγές</h2>
+      ${recent.length
+        ? `<div class="stacked">${recentList(recent)}</div><a class="more" href="/history">Όλο το ιστορικό</a>`
+        : '<p class="muted">Καμία αλλαγή ακόμα.</p>'}
+    </div>
   </div>
-</div>
-<div class="card">
-  <h2>Πρόσφατες αλλαγές από τον πίνακα</h2>
-  ${recent.length
-        ? `${recentList(recent)}<a class="more" href="/history">Όλο το ιστορικό</a>`
-        : '<p class="muted">Καμία αλλαγή ακόμα. Ό,τι αλλάζει από τις ρυθμίσεις και τα κείμενα εμφανίζεται εδώ.</p>'}
 </div>
 ${footer()}
 </div>`);
@@ -543,7 +632,7 @@ function statsPage({ user, csrf, view }) {
   </div>
   <p class="count">${escapeHtml(view.from)} έως ${escapeHtml(view.to)}</p>
 </div>
-<div class="card"><h2>Ανά ημέρα</h2><img class="chart" src="${escapeHtml(view.chartUrl)}" alt="Γράφημα μηνυμάτων ανά ημέρα"></div>
+<div class="card"><h2>Ανά ημέρα</h2><div class="chart-wrap">${view.chartSvg}</div><p class="count">Περάστε τον κέρσορα πάνω από το γράφημα για να δείτε κάθε ημέρα. <a href="${escapeHtml(view.chartUrl)}" download>Λήψη ως εικόνα</a></p></div>
 <div class="two">
   <div class="card"><h2>Ανά περίοδο</h2>${periodRows ? `<table class="list"><tr><th>Περίοδος</th><th>Ημερομηνίες</th><th>Μηνύματα</th><th class="wide-only"></th></tr>${periodRows}</table>` : '<p class="muted">Δεν έχουν οριστεί περίοδοι.</p>'}</div>
   ${view.channelId ? "" : `<div class="card"><h2>Πιο ενεργά κανάλια</h2>${topRows ? `<table class="list"><tr><th>Κανάλι</th><th>Μηνύματα</th></tr>${topRows}</table>` : '<p class="muted">Καμία καταμέτρηση.</p>'}</div>`}

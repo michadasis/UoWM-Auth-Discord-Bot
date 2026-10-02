@@ -89,8 +89,8 @@ test("admins, moderators and the owner get in; others do not", async () => {
         const page = await get("/", cookieValue(res, session.SESSION_COOKIE));
         assert.equal(page.status, 200);
         const html = await page.text();
-        assert.match(html, /Φοιτητές/);
-        assert.match(html, />90</);
+        assert.match(html, /Επαληθευμένα μέλη/);
+        assert.match(html, /90 φοιτητές/);
         assert.match(html, />96</); // verified total
     }
     const refused = await login(RANDOM);

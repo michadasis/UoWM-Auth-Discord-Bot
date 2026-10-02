@@ -29,6 +29,50 @@ const CLIENT_JS = `(() => {
     });
   });
 
+  // Daily chart on the stats page: the "σήμερα" marker follows the cursor and shows that day.
+  const MONTHS = ["Ιαν", "Φεβ", "Μαρ", "Απρ", "Μαΐ", "Ιουν", "Ιουλ", "Αυγ", "Σεπ", "Οκτ", "Νοε", "Δεκ"];
+  document.querySelectorAll("svg.activity-chart").forEach((svg) => {
+    const g = svg.querySelector("g.cursor");
+    if (!g) return;
+    const line = g.querySelector("line");
+    const label = g.querySelector("text");
+    const year = Number(svg.dataset.year);
+    const left = Number(svg.dataset.left);
+    const slot = Number(svg.dataset.slot);
+    const right = Number(svg.dataset.plotRight);
+    const counts = svg.dataset.counts.split(",").map(Number);
+    const vbWidth = svg.viewBox.baseVal.width;
+
+    function place(x, text) {
+      line.setAttribute("x1", x);
+      line.setAttribute("x2", x);
+      label.setAttribute("x", x);
+      label.textContent = text;
+      label.setAttribute("text-anchor", x > right - 110 ? "end" : x < left + 110 ? "start" : "middle");
+    }
+    function reset() {
+      if (g.dataset.home) {
+        g.removeAttribute("visibility");
+        place(Number(g.dataset.home), "σήμερα");
+      } else {
+        g.setAttribute("visibility", "hidden");
+      }
+    }
+    svg.addEventListener("pointermove", (event) => {
+      const box = svg.getBoundingClientRect();
+      const x = (event.clientX - box.left) * (vbWidth / box.width);
+      const i = Math.floor((x - left) / slot);
+      if (i < 0 || i >= counts.length) return reset();
+      const d = new Date(Date.UTC(year, 0, 1 + i));
+      const date = d.getUTCDate() + " " + MONTHS[d.getUTCMonth()];
+      const n = counts[i];
+      const text = n < 0 ? date + " · χωρίς καταμέτρηση" : date + " · " + n.toLocaleString("el-GR") + (n === 1 ? " μήνυμα" : " μηνύματα");
+      g.removeAttribute("visibility");
+      place(left + (i + 0.5) * slot, text);
+    });
+    svg.addEventListener("pointerleave", reset);
+  });
+
   // Live preview for the verify message editor.
   const editor = document.querySelector("textarea[data-live-preview]");
   if (editor) {

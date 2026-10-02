@@ -277,10 +277,14 @@ settings and texts.
   Every save is written to the admin log with who made it.
 - **Statistics (phase 4):** the `/stats activity` numbers on a page, for any year since the server
   was created and for the whole server or one channel: totals, average per day, messages per
-  period, the most active channels, the daily chart (`/stats/chart.png`) and the CSV download
+  period, the most active channels, the daily chart (inline SVG; the "σήμερα" marker follows the cursor and shows that day's count, and `/stats/chart.png` downloads it as an image) and the CSV download
   (`/stats/activity.csv`). Like the command, it only lists channels the logged-in member can see.
 - **Layout:** works on phones (single column, wrapping tabs, scrollable chart and tables) and
   desktops. Long forms keep their buttons at the bottom of the screen.
+- **Home page:** a greeting with how many issues need attention, four tiles (verified members and
+  how many joined this week, messages today and in the last 7 days, server members and the share
+  verified, active guests), bar charts of messages and verifications over the last 30 days, the
+  latest verifications, quick links, bot facts and the latest panel changes.
 - **Home page checks:** the bot's Manage Roles permission and role position, roles that no longer
   exist, missing log and semester channels, whether `/post-verify-info` has been run, and the HTTPS
   certificate's expiry (warning from 21 days before), each with a link to the fix where there is one.
