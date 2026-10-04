@@ -119,4 +119,7 @@ function createEmailVerification({ config, repo, mailer, loadFacultyLocals, link
     return { requestCode, submitCode };
 }
 
-module.exports = { createEmailVerification, LIMITS };
+// The stored hash of an identity (e.g. "faculty:mvavva"), as written to users.uni_id_hash.
+const identityHashFor = (secret, identityKey) => hmac(secret, `${IDENTITY_NAMESPACE}\n${identityKey}`);
+
+module.exports = { createEmailVerification, identityHashFor, LIMITS };

@@ -4,11 +4,12 @@
 
 const { escapeHtml } = require("./pages");
 
-function inline(text, { roles, channels }) {
+function inline(text, { roles, channels, users }) {
     const tokens = [];
     const keep = (html) => `\u0000${tokens.push(html) - 1}\u0000`;
     let s = text
         .replace(/<@&([\w-]+)>/g, (_, id) => keep(`<span class="mention">@${escapeHtml(roles.get(id) ?? "άγνωστος ρόλος")}</span>`))
+        .replace(/<@!?([\w-]+)>/g, (_, id) => keep(`<span class="mention">@${escapeHtml(users?.get(id) ?? "χρήστης")}</span>`))
         .replace(/<#([\w-]+)>/g, (_, id) => keep(`<span class="mention">#${escapeHtml(channels.get(id) ?? "άγνωστο κανάλι")}</span>`))
         .replace(/@(everyone|here)\b/g, (_, who) => keep(`<span class="mention">@${who}</span>`))
         .replace(/`([^`\n]+)`/g, (_, code) => keep(`<code>${escapeHtml(code)}</code>`));

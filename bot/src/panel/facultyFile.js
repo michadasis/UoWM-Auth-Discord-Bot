@@ -38,3 +38,43 @@ async function writeFacultyFile(file, text) {
 }
 
 module.exports = { readFacultyFile, checkFacultyText, writeFacultyFile };
+
+// One entry per address in the file: { local, email, name, section }. The name is the comment
+// after the address ("mvavva@uowm.gr # Βάββα Μαρία"); the section is the last full-line comment.
+function parseFacultyEntries(text, domain) {
+    const entries = [];
+    let section = "";
+    for (const raw of String(text).split(/\r?\n/)) {
+        const line = raw.trim();
+        if (!line) continue;
+        if (line.startsWith("#")) { section = line.replace(/^#\s*/, ""); continue; }
+        const [address, ...comment] = line.split("#");
+        const local = parseAddress(address.trim(), domain);
+        if (!local) continue;
+        entries.push({ local, email: `${local}@${domain}`, name: comment.join("#").trim(), section });
+    }
+    return entries;
+}
+
+const PANEL_SECTION = "# Added from the admin panel.";
+
+// Adds "email # name" at the end, under a heading for panel additions.
+function addFacultyLine(text, email, name) {
+    const lines = String(text).replace(/\r\n/g, "\n").replace(/\n*$/, "").split("\n").filter((l, i, all) => !(all.length === 1 && l === ""));
+    if (!lines.includes(PANEL_SECTION)) lines.push(PANEL_SECTION);
+    lines.push(name ? `${email} # ${name.replace(/[\r\n#]/g, " ").trim()}` : email);
+    return lines.join("\n") + "\n";
+}
+
+// Removes the lines with that address; comments and other lines stay as they are.
+function removeFacultyLine(text, local, domain) {
+    return String(text).replace(/\r\n/g, "\n").split("\n").filter((raw) => {
+        const line = raw.trim();
+        if (!line || line.startsWith("#")) return true;
+        return parseAddress(line.split("#")[0].trim(), domain) !== local;
+    }).join("\n");
+}
+
+module.exports.parseFacultyEntries = parseFacultyEntries;
+module.exports.addFacultyLine = addFacultyLine;
+module.exports.removeFacultyLine = removeFacultyLine;

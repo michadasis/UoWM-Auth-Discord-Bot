@@ -73,12 +73,13 @@ const CLIENT_JS = `(() => {
     svg.addEventListener("pointerleave", reset);
   });
 
-  // Live preview for the verify message editor.
-  const editor = document.querySelector("textarea[data-live-preview]");
-  if (editor) {
-    const preview = document.querySelector(".preview");
-    const count = document.querySelector("[data-count]");
+  // Live previews: <textarea data-live-preview="/url" data-preview-target="#id">. The endpoint
+  // gets the text (as "template" and "text") and answers { html, length?, maxLength? }.
+  document.querySelectorAll("textarea[data-live-preview]").forEach((editor) => {
+    const preview = document.querySelector(editor.dataset.previewTarget || ".preview");
+    const count = editor.form.querySelector("[data-count]");
     const csrf = editor.form.querySelector("input[name=csrf]").value;
+    if (!preview) return;
     let timer = null;
     let latest = 0;
     editor.addEventListener("input", () => {
@@ -89,19 +90,56 @@ const CLIENT_JS = `(() => {
           const res = await fetch(editor.dataset.livePreview, {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({ csrf, template: editor.value }),
+            body: new URLSearchParams({ csrf, template: editor.value, text: editor.value }),
           });
           if (!res.ok || ticket !== latest) return;
           const data = await res.json();
           preview.innerHTML = data.html;
-          count.textContent = data.length + " / " + data.maxLength + " χαρακτήρες" + (data.length > data.maxLength ? " · πάνω από το όριο" : "");
-          count.classList.toggle("over", data.length > data.maxLength);
+          if (count && typeof data.length === "number") {
+            count.textContent = data.length + " / " + data.maxLength + " χαρακτήρες" + (data.length > data.maxLength ? " · πάνω από το όριο" : "");
+            count.classList.toggle("over", data.length > data.maxLength);
+          }
         } catch (err) {
-          // Offline or logged out: the Προεπισκόπηση button still works.
+          // Offline or logged out: saving still shows the result.
         }
       }, 300);
     });
-  }
+  });
+
+  // Filter box for a table: <input data-filter="#table"> hides rows that do not match.
+  document.querySelectorAll("input[data-filter]").forEach((input) => {
+    const table = document.querySelector(input.dataset.filter);
+    if (!table) return;
+    const rows = [...table.querySelectorAll("tr[data-row]")];
+    const fold = (t) => t.normalize("NFKD").replace(/\\p{M}/gu, "").toLocaleLowerCase("el");
+    input.addEventListener("input", () => {
+      const q = fold(input.value.trim());
+      rows.forEach((row) => { row.hidden = q !== "" && !fold(row.textContent).includes(q); });
+    });
+  });
+
+  // Plain text that mirrors a field as you type: <input data-live-text="#id">.
+  document.querySelectorAll("[data-live-text]").forEach((input) => {
+    const target = document.querySelector(input.dataset.liveText);
+    if (!target) return;
+    input.addEventListener("input", () => {
+      target.textContent = input.value;
+      target.hidden = input.value.trim() === "";
+    });
+  });
+
+  // Warn before leaving a form with unsaved changes: <form data-unsaved>.
+  let dirty = false;
+  document.querySelectorAll("form[data-unsaved]").forEach((form) => {
+    form.addEventListener("input", () => { dirty = true; });
+    form.addEventListener("change", () => { dirty = true; });
+    form.addEventListener("submit", () => { dirty = false; });
+  });
+  window.addEventListener("beforeunload", (event) => {
+    if (!dirty) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
 })();`;
 
 module.exports = { CLIENT_JS };

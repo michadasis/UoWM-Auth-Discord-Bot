@@ -324,6 +324,15 @@ settings and texts.
   was created and for the whole server or one channel: totals, average per day, messages per
   period, the most active channels, the daily chart (inline SVG; the "σήμερα" marker follows the cursor and shows that day's count, and `/stats/chart.png` downloads it as an image) and the CSV download
   (`/stats/activity.csv`). Like the command, it only lists channels the logged-in member can see.
+- **Navigation:** a sidebar grouped into Επισκόπηση, Μέλη, Μηνύματα and Ρυθμίσεις (a menu button on
+  phones). Forms warn before leaving with unsaved changes, and the verify message, welcome, role
+  buttons and automatic replies preview as you type.
+- **Καλωσόρισμα:** its own page for the welcome channel and text, with a preview.
+- **Καθηγητές:** a table with each address, the name from its comment, and whether it has been used
+  to verify (only yes or no, never which Discord account), with search, add and remove; the whole
+  file can still be edited as text.
+- **Code layout:** `panel/server.js` holds login, sessions and the shared helpers; every area of
+  the panel has its own file in `panel/routes/`.
 - **Layout:** works on phones (single column, wrapping tabs, scrollable chart and tables) and
   desktops. Long forms keep their buttons at the bottom of the screen.
 - **Home page:** a greeting with how many issues need attention, four tiles (verified members and

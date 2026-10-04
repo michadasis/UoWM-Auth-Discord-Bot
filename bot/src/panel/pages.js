@@ -8,7 +8,21 @@ const CSS = `
 * { box-sizing:border-box; }
 html,body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,"Noto Sans",sans-serif; }
 a { color:var(--teal); }
-.wrap { max-width:880px; margin:0 auto; padding:32px 20px 48px; }
+.wrap { max-width:1180px; margin:0 auto; padding:24px 20px 40px; }
+.shell { display:grid; grid-template-columns:200px minmax(0,1fr); gap:28px; align-items:start; }
+.side { position:sticky; top:16px; display:flex; flex-direction:column; gap:18px; }
+.nav-group { display:flex; flex-direction:column; gap:2px; }
+.nav-title { font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding:0 10px 4px; }
+.side a, .mobile-nav a { padding:7px 10px; border-radius:8px; color:var(--text); text-decoration:none; font-weight:500; font-size:14.5px; }
+.side a:hover, .mobile-nav a:hover { background:rgba(255,255,255,.04); color:var(--white); text-decoration:none; }
+.side a.on, .mobile-nav a.on { background:var(--card); color:var(--white); font-weight:700; box-shadow:inset 3px 0 0 var(--teal); }
+.mobile-nav { display:none; margin:-6px 0 14px; }
+.mobile-nav summary { cursor:pointer; list-style:none; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 14px; font-weight:700; color:var(--white); }
+.mobile-nav summary::-webkit-details-marker { display:none; }
+.mobile-nav summary::after { content:"▾"; float:right; color:var(--muted); }
+.mobile-nav[open] summary::after { content:"▴"; }
+.mobile-nav nav { display:grid; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; margin-top:6px; }
+@media (max-width:860px) { .shell { display:block; } .side { display:none; } .mobile-nav { display:block; } }
 .top { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:28px; }
 .brand { display:flex; align-items:center; gap:10px; font-weight:800; font-size:18px; color:var(--white); }
 .brand .dots { display:flex; gap:5px; }
@@ -32,9 +46,6 @@ button, .button { font:inherit; font-weight:600; border:0; border-radius:8px; pa
 .box { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:32px 30px; max-width:420px; width:100%; text-align:center; }
 .box h1 { margin:0 0 8px; font-size:22px; color:var(--white); }
 .box p { margin:0 0 20px; }
-nav.tabs { display:flex; gap:6px; margin:-12px 0 22px; }
-nav.tabs a { padding:7px 12px; border-radius:8px; color:var(--muted); text-decoration:none; font-weight:600; }
-nav.tabs a.on { background:var(--card); color:var(--white); border:1px solid var(--line); }
 .field { display:grid; grid-template-columns:220px 1fr; gap:6px 18px; padding:14px 0; border-top:1px solid var(--line); }
 .field:first-of-type { border-top:0; }
 .field label.name { color:var(--white); font-weight:600; }
@@ -85,9 +96,6 @@ table.list td.bar { width:30%; }
 a:hover { text-decoration:underline; }
 button:hover, .button:hover { filter:brightness(1.12); text-decoration:none; }
 :focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
-nav.tabs { flex-wrap:wrap; row-gap:4px; }
-nav.tabs a { white-space:nowrap; }
-nav.tabs a:hover { color:var(--white); text-decoration:none; }
 .card { overflow-x:auto; }
 .note { border-radius:10px; padding:10px 14px; margin:0 0 18px; font-size:14px; background:rgba(79,184,186,.12); border:1px solid rgba(79,184,186,.4); }
 .recent { list-style:none; margin:0; padding:0; }
@@ -96,7 +104,7 @@ nav.tabs a:hover { color:var(--white); text-decoration:none; }
 .recent .when { color:var(--muted); white-space:nowrap; }
 footer.foot { margin-top:36px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:12.5px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
 .actions { flex-wrap:wrap; align-items:center; }
-.wrap.wide { max-width:1280px; }
+.wrap.wide { max-width:1400px; }
 .editor-grid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:16px; align-items:start; }
 .editor-grid .preview-card { position:sticky; top:12px; max-height:calc(100vh - 110px); overflow:auto; }
 textarea.wrap-text { white-space:pre-wrap; overflow-wrap:anywhere; min-height:560px; font-size:14px; line-height:1.6; }
@@ -144,6 +152,11 @@ input.filter, .toolbar input[type=search] { width:100%; background:var(--bg); co
 input[type=color] { width:64px; height:36px; padding:2px; background:var(--bg); border:1px solid var(--line); border-radius:8px; }
 .status { font-size:13px; color:var(--muted); }
 .status b { color:var(--teal); }
+.tag.on { color:var(--teal); border-color:rgba(79,184,186,.5); }
+details.card summary { cursor:pointer; }
+details.card[open] summary { margin-bottom:10px; }
+.form-grid.single { grid-template-columns:1fr; }
+.form-grid textarea.short { min-height:110px; }
 .card-scroll { overflow-x:auto; margin:8px 0; }
 .btn-rows input[name=btn_emoji_text] { margin-top:4px; }
 .preview-inline .h1, .preview-inline .h2, .preview-inline .h3 { color:#f2f3f5; font-weight:700; }
@@ -206,8 +219,6 @@ input[type=color] { width:64px; height:36px; padding:2px; background:var(--bg); 
   .user span { display:none; }
   .user img { width:28px; height:28px; }
   .user button { padding:7px 12px; }
-  nav.tabs { flex-wrap:wrap; gap:4px; margin:-6px 0 16px; }
-  nav.tabs a { padding:6px 10px; font-size:14px; }
   .card { padding:16px 14px; }
   textarea { white-space:pre-wrap; min-height:260px; }
   .chart, .activity-chart { min-width:640px; }
@@ -281,12 +292,22 @@ function avatarUrl(user) {
         : `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(user.id) >> 22n) % 6n)}.png`;
 }
 
-const footer = () => `<footer class="foot"><span>Πληροφορική UoWM · Πίνακας διαχείρισης του bot</span><span>Ανεπίσημη υπηρεσία από φοιτητές</span></footer>`;
+const footer = () => `<footer class="foot"><span>Πληροφορική UoWM · Πίνακας διαχείρισης του bot</span><span>Ανεπίσημη υπηρεσία από φοιτητές</span></footer></div></div>`;
 
-const TABS = [["/", "Αρχική"], ["/stats", "Στατιστικά"], ["/members", "Μέλη"], ["/guests", "Προσωρινές άδειες"], ["/replies", "Απαντήσεις"], ["/role-menus", "Κουμπιά ρόλων"], ["/settings", "Ρυθμίσεις"], ["/verify-text", "Μήνυμα επαλήθευσης"], ["/periods", "Περίοδοι"], ["/faculty", "Καθηγητές"]];
+// Navigation, grouped. Every page opens the shell with header() and closes it with footer().
+const NAV = [
+    ["Επισκόπηση", [["/", "Αρχική"], ["/stats", "Στατιστικά"], ["/history", "Ιστορικό"]]],
+    ["Μέλη", [["/members", "Μέλη"], ["/guests", "Προσωρινές άδειες"]]],
+    ["Μηνύματα", [["/verify-text", "Μήνυμα επαλήθευσης"], ["/welcome", "Καλωσόρισμα"], ["/role-menus", "Κουμπιά ρόλων"], ["/replies", "Απαντήσεις"]]],
+    ["Ρυθμίσεις", [["/settings", "Ρόλοι και κανάλια"], ["/periods", "Περίοδοι"], ["/faculty", "Καθηγητές"]]],
+];
+
+function navHtml(active) {
+    return NAV.map(([group, links]) => `<div class="nav-group"><div class="nav-title">${group}</div>${links.map(([href, label]) => `<a href="${href}"${href === active ? ' class="on" aria-current="page"' : ""}>${label}</a>`).join("")}</div>`).join("");
+}
 
 function header(user, csrf, active) {
-    const tabs = TABS.map(([href, label]) => `<a href="${href}"${href === active ? ' class="on"' : ""}>${label}</a>`).join("");
+    const current = NAV.flatMap(([, links]) => links).find(([href]) => href === active)?.[1] ?? "Μενού";
     return `<div class="top">
   <div class="brand">${dots} Πληροφορική UoWM</div>
   <div class="user">
@@ -298,7 +319,8 @@ function header(user, csrf, active) {
     </form>
   </div>
 </div>
-<nav class="tabs">${tabs}</nav>`;
+<details class="mobile-nav"><summary>${escapeHtml(current)}</summary><nav>${navHtml(active)}</nav></details>
+<div class="shell"><nav class="side" aria-label="Πλοήγηση">${navHtml(active)}</nav><div class="content">`;
 }
 
 const AFF_LABELS = { student: "Φοιτητής", faculty: "Καθηγητής", staff: "Προσωπικό" };
@@ -389,7 +411,7 @@ function repliesPage({ user, csrf, rules, edit = null, errors = [], done = null,
     const e = edit || { id: "", name: "", triggers: "", reply: "", deleteAfter: 20, enabled: true };
     const form = `<div class="card" id="form">
   <h2>${e.id ? `Επεξεργασία: ${escapeHtml(e.name)}` : "Νέα αυτόματη απάντηση"}</h2>
-  <form method="post" action="/replies/save">
+  <form method="post" action="/replies/save" data-unsaved>
     ${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(e.id)}">
     <div class="form-grid">
       <label class="block">Όνομα<input type="text" name="name" maxlength="100" value="${escapeHtml(e.name)}" placeholder="π.χ. Παλιά θέματα" required></label>
@@ -399,8 +421,10 @@ function repliesPage({ user, csrf, rules, edit = null, errors = [], done = null,
         <span class="count">Ταιριάζει όταν όλες οι λέξεις μιας γραμμής υπάρχουν στο μήνυμα, με οποιαδήποτε σειρά. Γράψτε την αρχή κάθε λέξης: «θεματ» πιάνει θέμα, θέματα, θεμάτων. Κεφαλαία, τόνοι και greeklish δεν παίζουν ρόλο.</span>
       </label>
       <label class="block">Τι απαντά
-        <textarea name="reply" spellcheck="true" lang="el">${escapeHtml(e.reply)}</textarea>
+        <textarea name="reply" spellcheck="true" lang="el" data-live-preview="/replies/preview" data-preview-target="#reply-preview">${escapeHtml(e.reply)}</textarea>
         <span class="count">Markdown του Discord. Το <code>{εξάμηνα}</code> γίνεται link στο κανάλι επιλογής εξαμήνων.</span>
+        <span class="count">Προεπισκόπηση:</span>
+        <div class="preview" id="reply-preview">${e.previewHtml || ""}</div>
       </label>
     </div>
     <label class="envbox"><input type="checkbox" name="enabled" value="1"${e.enabled ? " checked" : ""}> Ενεργή</label>
@@ -431,7 +455,8 @@ ${footer()}
 }
 
 // The menu as Discord would show it. menu.descriptionHtml: rendered markdown.
-function discordMenuPreview(menu, roleName) {
+// ids: optional element ids, so the editor's script can update the preview while typing.
+function discordMenuPreview(menu, roleName, ids = null) {
     const emojiHtml = (e) => {
         const m = String(e || "").match(/^<a?:[\w~]+:(\d{17,20})>$/);
         if (m) return `<img src="https://cdn.discordapp.com/emojis/${m[1]}.png?size=32" alt="">`;
@@ -439,7 +464,7 @@ function discordMenuPreview(menu, roleName) {
     };
     const buttons = menu.buttons.map((b) => `<span class="dbtn ${escapeHtml(b.style || "primary")}">${emojiHtml(b.emoji)}${escapeHtml(b.label || roleName(b.roleId) || "Ρόλος")}</span>`).join("");
     return `<div class="dmsg"><div class="dembed"><svg class="bar" viewBox="0 0 4 10" preserveAspectRatio="none"><rect width="4" height="10" fill="${escapeHtml(menu.color || "#F4A11C")}"/></svg>
-${menu.title ? `<div class="t">${escapeHtml(menu.title)}</div>` : ""}<div class="preview-inline">${menu.descriptionHtml || ""}</div>${menu.footer ? `<div class="f">${menu.footerIconSrc ? `<img src="${escapeHtml(menu.footerIconSrc)}" alt="">` : ""}${escapeHtml(menu.footer)}</div>` : ""}</div>
+<div class="t"${ids ? ` id="${ids}-title"` : ""}${menu.title ? "" : " hidden"}>${escapeHtml(menu.title)}</div><div class="preview-inline"${ids ? ` id="${ids}-desc"` : ""}>${menu.descriptionHtml || ""}</div><div class="f"${menu.footer ? "" : " hidden"}>${menu.footerIconSrc ? `<img src="${escapeHtml(menu.footerIconSrc)}" alt="">` : ""}<span${ids ? ` id="${ids}-footer"` : ""}>${escapeHtml(menu.footer)}</span></div></div>
 <div class="dbuttons">${buttons || '<span class="muted">Κανένα κουμπί.</span>'}</div></div>`;
 }
 
@@ -474,16 +499,16 @@ function roleMenusPage({ user, csrf, menus, edit = null, options, errors = [], d
         }).join("");
         form = `<div class="card" id="form">
   <h2>${e.id ? `Επεξεργασία: ${escapeHtml(e.name)}` : "Νέο μήνυμα με κουμπιά"}</h2>
-  <form method="post" action="/role-menus/save">
+  <form method="post" action="/role-menus/save" data-unsaved>
     ${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(e.id || "")}">
     <div class="form-grid">
       <label class="block">Όνομα (μόνο για τον πίνακα)<input type="text" name="name" maxlength="100" value="${escapeHtml(e.name)}" required></label>
       <label class="block">Κανάλι<select name="channelId"><option value="">(διάλεξε κανάλι)</option>${channelOpts}</select></label>
-      <label class="block">Τίτλος<input type="text" name="title" maxlength="256" value="${escapeHtml(e.title)}"></label>
+      <label class="block">Τίτλος<input type="text" name="title" maxlength="256" value="${escapeHtml(e.title)}" data-live-text="#edit-title"></label>
       <label class="block">Χρώμα<input type="color" name="color" value="${escapeHtml(e.color || "#F4A11C")}"></label>
-      <label class="block">Κείμενο (markdown του Discord)<textarea name="description" maxlength="4000">${escapeHtml(e.description)}</textarea></label>
+      <label class="block">Κείμενο (markdown του Discord)<textarea name="description" maxlength="4000" data-live-preview="/role-menus/preview" data-preview-target="#edit-desc">${escapeHtml(e.description)}</textarea></label>
       <div class="block-group">
-        <label class="block">Footer<input type="text" name="footer" maxlength="2048" value="${escapeHtml(e.footer)}"></label>
+        <label class="block">Footer<input type="text" name="footer" maxlength="2048" value="${escapeHtml(e.footer)}" data-live-text="#edit-footer"></label>
         <label class="block">Εικόνα footer
           <select name="footerIconMode">
             <option value=""${!e.footerIcon ? " selected" : ""}>Καμία</option>
@@ -494,6 +519,9 @@ function roleMenusPage({ user, csrf, menus, edit = null, options, errors = [], d
         </label>
       </div>
     </div>
+    <h2>Προεπισκόπηση</h2>
+    <div class="count">Ο τίτλος, το κείμενο και το footer αλλάζουν καθώς γράφετε. Τα κουμπιά, το χρώμα και η εικόνα ενημερώνονται με την αποθήκευση.</div>
+    ${discordMenuPreview(e, roleName, "edit")}
     <h2>Κουμπιά</h2>
     <div class="count">Έως 25. Κάθε κουμπί δίνει τον ρόλο του, ή τον αφαιρεί αν το μέλος τον έχει ήδη. Η σειρά ορίζεται από τον αριθμό αριστερά. Αν χρειάζεστε περισσότερες κενές γραμμές, αποθηκεύστε και θα εμφανιστούν νέες.</div>
     <div class="card-scroll"><table class="btn-rows"><tr><th>#</th><th>Ρόλος</th><th>Κείμενο</th><th>Emoji</th><th>Χρώμα</th></tr>${rows}</table></div>
@@ -518,12 +546,46 @@ ${footer()}
 </div>`);
 }
 
+// defs: WELCOME_* settings (source, envValue). values: what the form shows.
+function welcomePage({ user, csrf, defs, values, channels, previewHtml, errors = [], saved = false }) {
+    const def = (key) => defs.find((d) => d.key === key);
+    const resetBox = (key) => def(key)?.source === "panel" ? `<label class="envbox"><input type="checkbox" name="${key}__env" value="1"> Επαναφορά στην τιμή του .env</label>` : "";
+    const channelOpts = channels.map((c) => `<option value="${escapeHtml(c.id)}"${c.id === values.WELCOME_CHANNEL_ID ? " selected" : ""}>#${escapeHtml(c.name)}${c.category ? ` (${escapeHtml(c.category)})` : ""}</option>`).join("");
+    return layout("Καλωσόρισμα", `<div class="wrap">
+${header(user, csrf, "/welcome")}
+${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Ισχύει από το επόμενο νέο μέλος." })}
+<p class="muted">Όταν μπαίνει κάποιος στον server, το bot τον καλωσορίζει στο κανάλι που θα διαλέξετε. Το mention ειδοποιεί μόνο το νέο μέλος. Αν το κανάλι μείνει κενό, δεν στέλνεται καλωσόρισμα.</p>
+<form method="post" action="/welcome" data-unsaved>
+${hiddenCsrf(csrf)}
+<div class="editor-grid">
+  <div class="card">
+    <h2>Ρυθμίσεις</h2>
+    <div class="form-grid single">
+      <label class="block">Κανάλι καλωσορίσματος<select name="WELCOME_CHANNEL_ID"><option value="">(κανένα, χωρίς καλωσόρισμα)</option>${channelOpts}</select>${resetBox("WELCOME_CHANNEL_ID")}</label>
+      <label class="block">Μήνυμα
+        <textarea name="WELCOME_MESSAGE" maxlength="500" class="short" data-live-preview="/welcome/preview" data-preview-target="#welcome-preview" placeholder="Κενό: Καλώς ήρθες {μέλος}, κάνε την επαλήθευση για να έχεις πρόσβαση: {επαλήθευση}.">${escapeHtml(values.WELCOME_MESSAGE || "")}</textarea>
+        <span class="count">Κενό: το προεπιλεγμένο κείμενο. <code>{μέλος}</code> γίνεται mention του νέου μέλους και <code>{επαλήθευση}</code> link στο κανάλι επαλήθευσης (Ρόλοι και κανάλια).</span>
+        ${resetBox("WELCOME_MESSAGE")}
+      </label>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Προεπισκόπηση</h2>
+    <div class="preview" id="welcome-preview">${previewHtml}</div>
+  </div>
+</div>
+<div class="actions sticky"><a class="button ghost" href="/welcome">Ακύρωση</a><button class="primary" type="submit">Αποθήκευση</button></div>
+</form>
+${footer()}
+</div>`);
+}
+
 // [{ area, summary, who, when }] as a list.
 const recentList = (items) => `<ul class="recent">${items.map((r) => `<li><span><span class="area">${escapeHtml(r.area)}</span> ${escapeHtml(r.summary)} <span class="muted">· ${escapeHtml(r.who)}</span></span><span class="when">${escapeHtml(r.when)}</span></li>`).join("")}</ul>`;
 
 function historyPage({ user, csrf, entries }) {
     return layout("Ιστορικό", `<div class="wrap">
-${header(user, csrf, "/")}
+${header(user, csrf, "/history")}
 <div class="card">
   <h2>Ιστορικό αλλαγών</h2>
   ${entries.length ? recentList(entries) : '<p class="muted">Καμία αλλαγή ακόμα.</p>'}
@@ -625,7 +687,6 @@ const GROUPS = [
     ["semesters", "Εξάμηνα"],
     ["staff", "Διαχείριση"],
     ["channels", "Κανάλια"],
-    ["welcome", "Καλωσόρισμα"],
     ["bot", "Bot"],
 ];
 
@@ -684,7 +745,7 @@ function settingsPage({ user, csrf, settings, roles, channels, errors = [], save
     return layout("Ρυθμίσεις", `<div class="wrap">
 ${header(user, csrf, "/settings")}
 ${banner}
-<form method="post" action="/settings">
+<form method="post" action="/settings" data-unsaved>
 <input type="hidden" name="csrf" value="${escapeHtml(csrf)}">
 ${cards}
 <p class="muted">Ό,τι αλλάξετε εδώ υπερισχύει του .env. Αλλαγές σε ρόλους που αναφέρονται στο μήνυμα του #επαλήθευση το ξαναστέλνουν (με ping).</p>
@@ -709,19 +770,19 @@ function verifyTextPage({ user, csrf, template, previewHtml, length, maxLength, 
     return layout("Μήνυμα επαλήθευσης", `<div class="wrap wide">
 ${header(user, csrf, "/verify-text")}
 ${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Το μήνυμα στο #επαλήθευση θα ξανασταλεί με ping, αν άλλαξε." })}
-<form method="post" action="/verify-text">
+<form method="post" action="/verify-text" data-unsaved>
 <input type="hidden" name="csrf" value="${escapeHtml(csrf)}">
 <div class="editor-grid">
   <div class="card">
     <h2>Κείμενο</h2>
     <div class="muted">Markdown του Discord: <code># τίτλος</code>, <code>**έντονα**</code>, <code>__υπογράμμιση__</code>, <code>1. λίστα</code>, <code>-# μικρά</code>. Για ρόλους γράψτε:</div>
     <div class="chips">${chips}</div>
-    <textarea class="wrap-text" name="template" spellcheck="true" lang="el" data-live-preview="/verify-text/preview">${escapeHtml(template)}</textarea>
+    <textarea class="wrap-text" name="template" spellcheck="true" lang="el" data-live-preview="/verify-text/preview" data-preview-target="#verify-preview">${escapeHtml(template)}</textarea>
     <div class="count${length > maxLength ? " over" : ""}" data-count>${length} / ${maxLength} χαρακτήρες${previewed ? " · προεπισκόπηση, δεν έχει αποθηκευτεί" : ""}</div>
   </div>
   <div class="card preview-card">
     <h2>Προεπισκόπηση</h2>
-    <div class="preview">${previewHtml}</div>
+    <div class="preview" id="verify-preview">${previewHtml}</div>
   </div>
 </div>
 <p class="muted">${sourceNote(fromPanel, "bot/src/lib/privacyNotice.js")} Κάθε αποθήκευση που αλλάζει το κείμενο ξαναστέλνει το μήνυμα με ping σε όλους.</p>
@@ -744,7 +805,7 @@ function periodsPage({ user, csrf, lines, rows, fromPanel, errors, saved, previe
     return layout("Περίοδοι", `<div class="wrap">
 ${header(user, csrf, "/periods")}
 ${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Ισχύει ήδη στο /stats activity." })}
-<form method="post" action="/periods">
+<form method="post" action="/periods" data-unsaved>
 <input type="hidden" name="csrf" value="${escapeHtml(csrf)}">
 <div class="two">
   <div class="card">
@@ -770,21 +831,45 @@ ${footer()}
 </div>`);
 }
 
-function facultyPage({ user, csrf, text, count, domain, errors, saved }) {
+// entries: [{ local, email, name, section, verified }] from the file.
+function facultyPage({ user, csrf, text, count, domain, entries = [], errors = [], done = null, add = {} }) {
+    const verifiedCount = entries.filter((e) => e.verified).length;
+    const rows = entries.map((e) => `<tr data-row>
+<td>${escapeHtml(e.name || "")}</td>
+<td><code>${escapeHtml(e.email)}</code></td>
+<td>${e.verified ? '<span class="tag on">επαληθευμένος</span>' : '<span class="muted">όχι ακόμα</span>'}</td>
+<td class="num"><form method="post" action="/faculty/remove" class="inline" data-confirm="Να αφαιρεθεί το ${escapeHtml(e.email)}${e.name ? ` (${escapeHtml(e.name)})` : ""} από τη λίστα;">${hiddenCsrf(csrf)}<input type="hidden" name="email" value="${escapeHtml(e.email)}"><button class="danger" type="submit">Αφαίρεση</button></form></td>
+</tr>`).join("");
     return layout("Καθηγητές", `<div class="wrap">
 ${header(user, csrf, "/faculty")}
-${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Ισχύει από την επόμενη επαλήθευση." })}
-<form method="post" action="/faculty">
-<input type="hidden" name="csrf" value="${escapeHtml(csrf)}">
+${banner({ errors })}${done ? `<div class="banner ok">${escapeHtml(done)}</div>` : ""}
+<p class="muted">Όποιος επαληθεύεται από μία από αυτές τις διευθύνσεις παίρνει τον ρόλο Καθηγητής. Οι αλλαγές ισχύουν από την επόμενη επαλήθευση. Όσοι έχουν ήδη επαληθευτεί κρατούν τον ρόλο τους.</p>
 <div class="card">
-  <h2>Λίστα καθηγητών</h2>
-  <div class="muted">Μία διεύθυνση @${escapeHtml(domain)} ανά γραμμή. Όποιος επαληθεύεται από αυτές παίρνει τον ρόλο Καθηγητής. Οι γραμμές που αρχίζουν με # αγνοούνται.</div>
-  <textarea name="text" spellcheck="false">${escapeHtml(text)}</textarea>
-  <div class="count">${count} διευθύνσεις</div>
+  <h2>Προσθήκη</h2>
+  <form class="toolbar" method="post" action="/faculty/add">
+    ${hiddenCsrf(csrf)}
+    <label>Email<input type="search" name="email" value="${escapeHtml(add.email || "")}" placeholder="π.χ. mvavva@${escapeHtml(domain)}" required></label>
+    <label>Όνομα<input type="search" name="name" value="${escapeHtml(add.name || "")}" placeholder="π.χ. Βάββα Μαρία" maxlength="100"></label>
+    <button class="primary" type="submit">Προσθήκη</button>
+  </form>
 </div>
-<p class="muted">Αποθηκεύεται στο <code>data/faculty-emails.txt</code> στον server. Όσοι έχουν ήδη επαληθευτεί κρατούν τον ρόλο τους.</p>
-<div class="actions sticky"><a class="button ghost" href="/faculty">Ακύρωση</a><button class="primary" type="submit">Αποθήκευση</button></div>
-</form>
+<div class="card">
+  <h2>Λίστα (${entries.length})</h2>
+  <p class="count">${verifiedCount} από ${entries.length} έχουν ήδη επαληθευτεί στον server.</p>
+  <input type="search" class="filter" data-filter="#faculty-table" placeholder="Αναζήτηση ονόματος ή email..." aria-label="Αναζήτηση">
+  <div class="card-scroll"><table class="list" id="faculty-table"><tr><th>Όνομα</th><th>Email</th><th>Κατάσταση</th><th></th></tr>${rows}</table></div>
+</div>
+<details class="card"${errors.length && text ? " open" : ""}>
+  <summary><b>Επεξεργασία ως κείμενο</b> <span class="muted">για πολλές αλλαγές μαζί</span></summary>
+  <form method="post" action="/faculty" data-unsaved>
+    ${hiddenCsrf(csrf)}
+    <p class="muted">Μία διεύθυνση @${escapeHtml(domain)} ανά γραμμή, με το όνομα σε σχόλιο: <code>mvavva@${escapeHtml(domain)} # Βάββα Μαρία</code>. Οι γραμμές που αρχίζουν με # αγνοούνται.</p>
+    <textarea name="text" spellcheck="false">${escapeHtml(text)}</textarea>
+    <div class="count">${count} διευθύνσεις</div>
+    <div class="actions"><button class="primary" type="submit">Αποθήκευση</button></div>
+  </form>
+</details>
+<p class="muted">Αποθηκεύεται στο <code>data/faculty-emails.txt</code> στον server.</p>
 ${footer()}
 </div>`);
 }
@@ -834,4 +919,4 @@ ${footer()}
 </div>`);
 }
 
-module.exports = { CSS, FAVICON_SVG, CLIENT_JS, repliesPage, roleMenusPage, escapeHtml, statsPage, historyPage, membersPage, guestsPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };
+module.exports = { CSS, FAVICON_SVG, CLIENT_JS, repliesPage, roleMenusPage, welcomePage, escapeHtml, statsPage, historyPage, membersPage, guestsPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };
