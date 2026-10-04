@@ -111,6 +111,19 @@ input.filter, .toolbar input[type=search] { width:100%; background:var(--bg); co
 .danger { background:transparent; color:#ff8fa8; border:1px solid rgba(224,36,94,.55); padding:6px 12px; font-size:13px; }
 .pager { display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:12px; font-size:14px; }
 .tag.off { color:var(--orange); border-color:rgba(244,161,28,.5); }
+.rule { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; }
+.rule h3 { margin:0 0 6px; font-size:16px; color:var(--white); display:flex; gap:8px; align-items:center; }
+.rule .meta { color:var(--muted); font-size:13px; margin-bottom:8px; }
+.rule .chips code { white-space:nowrap; }
+.rule-actions { display:flex; gap:8px; margin-top:10px; }
+.form-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; }
+.form-grid label.block { display:flex; flex-direction:column; gap:5px; font-size:13px; color:var(--muted); }
+.form-grid textarea { min-height:150px; white-space:pre-wrap; }
+.form-grid input[type=text], .form-grid input[type=number] { width:100%; }
+.match { border-radius:10px; padding:10px 14px; margin-top:10px; font-size:14px; }
+.match.yes { background:rgba(79,184,186,.12); border:1px solid rgba(79,184,186,.4); }
+.match.no { background:rgba(244,161,28,.10); border:1px solid rgba(244,161,28,.4); }
+@media (max-width:760px) { .rule, .form-grid { grid-template-columns:1fr; } }
 .greet { margin:-4px 0 18px; }
 .greet h1 { margin:0 0 2px; font-size:24px; color:var(--white); }
 .greet p { margin:0; }
@@ -246,7 +259,7 @@ function avatarUrl(user) {
 
 const footer = () => `<footer class="foot"><span>Πληροφορική UoWM · Πίνακας διαχείρισης του bot</span><span>Ανεπίσημη υπηρεσία από φοιτητές</span></footer>`;
 
-const TABS = [["/", "Αρχική"], ["/stats", "Στατιστικά"], ["/members", "Μέλη"], ["/guests", "Προσωρινές άδειες"], ["/settings", "Ρυθμίσεις"], ["/verify-text", "Μήνυμα επαλήθευσης"], ["/periods", "Περίοδοι"], ["/faculty", "Καθηγητές"]];
+const TABS = [["/", "Αρχική"], ["/stats", "Στατιστικά"], ["/members", "Μέλη"], ["/guests", "Προσωρινές άδειες"], ["/replies", "Απαντήσεις"], ["/settings", "Ρυθμίσεις"], ["/verify-text", "Μήνυμα επαλήθευσης"], ["/periods", "Περίοδοι"], ["/faculty", "Καθηγητές"]];
 
 function header(user, csrf, active) {
     const tabs = TABS.map(([href, label]) => `<a href="${href}"${href === active ? ' class="on"' : ""}>${label}</a>`).join("");
@@ -328,6 +341,67 @@ ${banner({ errors })}${done ? `<div class="banner ok">${escapeHtml(done)}</div>`
   <h2>Ενεργές προσωρινές άδειες (${guests.length})</h2>
   ${rows ? `<table class="list"><tr><th>Μέλος</th><th>Αιτιολογία</th><th>Από</th><th></th></tr>${rows}</table>` : '<p class="muted">Καμία.</p>'}
 </div>
+${footer()}
+</div>`);
+}
+
+// rules: [{ id, name, triggers, reply, deleteAfter, enabled, previewHtml }]
+// edit: rule being edited (or a new one), test: { text, rule, previewHtml } or null.
+function repliesPage({ user, csrf, rules, edit = null, errors = [], done = null, test = null }) {
+    const after = (secs) => (secs > 0 ? `Σβήνεται μετά από ${secs} δευτ.` : "Δεν σβήνεται");
+    const cards = rules.map((r) => `<div class="card"><div class="rule">
+  <div>
+    <h3>${escapeHtml(r.name)} ${r.enabled ? "" : '<span class="tag off">ανενεργή</span>'}</h3>
+    <div class="meta">${escapeHtml(after(r.deleteAfter))} · απαντά μία φορά ανά 2 λεπτά σε κάθε μέλος</div>
+    <div class="chips">${r.triggers.split(/\r?\n/).filter((t) => t.trim()).map((t) => `<code>${escapeHtml(t.trim())}</code>`).join("")}</div>
+    <div class="rule-actions">
+      <a class="button ghost" href="/replies?edit=${r.id}">Επεξεργασία</a>
+      <form method="post" action="/replies/delete" class="inline" data-confirm="Να διαγραφεί η απάντηση «${escapeHtml(r.name)}»;">${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${r.id}"><button class="danger" type="submit">Διαγραφή</button></form>
+    </div>
+  </div>
+  <div class="preview">${r.previewHtml}</div>
+</div></div>`).join("");
+
+    const e = edit || { id: "", name: "", triggers: "", reply: "", deleteAfter: 20, enabled: true };
+    const form = `<div class="card" id="form">
+  <h2>${e.id ? `Επεξεργασία: ${escapeHtml(e.name)}` : "Νέα αυτόματη απάντηση"}</h2>
+  <form method="post" action="/replies/save">
+    ${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(e.id)}">
+    <div class="form-grid">
+      <label class="block">Όνομα<input type="text" name="name" maxlength="100" value="${escapeHtml(e.name)}" placeholder="π.χ. Παλιά θέματα" required></label>
+      <label class="block">Διαγραφή της απάντησης μετά από (δευτερόλεπτα, 0 = ποτέ)<input type="number" name="deleteAfter" min="0" max="3600" value="${escapeHtml(e.deleteAfter)}"></label>
+      <label class="block">Πότε απαντά: μία φράση ανά γραμμή
+        <textarea name="triggers" spellcheck="false" placeholder="παλια θεματ&#10;θεματα εξετασ">${escapeHtml(e.triggers)}</textarea>
+        <span class="count">Ταιριάζει όταν όλες οι λέξεις μιας γραμμής υπάρχουν στο μήνυμα, με οποιαδήποτε σειρά. Γράψτε την αρχή κάθε λέξης: «θεματ» πιάνει θέμα, θέματα, θεμάτων. Κεφαλαία, τόνοι και greeklish δεν παίζουν ρόλο.</span>
+      </label>
+      <label class="block">Τι απαντά
+        <textarea name="reply" spellcheck="true" lang="el">${escapeHtml(e.reply)}</textarea>
+        <span class="count">Markdown του Discord. Το <code>{εξάμηνα}</code> γίνεται link στο κανάλι επιλογής εξαμήνων.</span>
+      </label>
+    </div>
+    <label class="envbox"><input type="checkbox" name="enabled" value="1"${e.enabled ? " checked" : ""}> Ενεργή</label>
+    <div class="actions">${e.id ? '<a class="button ghost" href="/replies">Ακύρωση</a>' : ""}<button class="primary" type="submit">Αποθήκευση</button></div>
+  </form>
+</div>`;
+
+    const tester = `<div class="card">
+  <h2>Δοκιμή</h2>
+  <form class="toolbar" method="get" action="/replies">
+    <label>Γράψτε ένα μήνυμα όπως θα το έγραφε ένα μέλος<input type="search" name="test" value="${escapeHtml(test?.text ?? "")}" placeholder="π.χ. πού είναι τα παλιά θέματα;"></label>
+    <button class="ghost" type="submit">Δοκιμή</button>
+  </form>
+  ${test ? (test.rule
+        ? `<div class="match yes">Ταιριάζει με την απάντηση <b>${escapeHtml(test.rule.name)}</b>. Το bot θα απαντούσε:</div><div class="preview">${test.previewHtml}</div>`
+        : '<div class="match no">Δεν ταιριάζει με καμία ενεργή απάντηση.</div>') : ""}
+</div>`;
+
+    return layout("Αυτόματες απαντήσεις", `<div class="wrap">
+${header(user, csrf, "/replies")}
+${banner({ errors })}${done ? `<div class="banner ok">${escapeHtml(done)}</div>` : ""}
+<p class="muted">Όταν κάποιος γράψει κάτι που ταιριάζει, το bot του απαντά και σβήνει την απάντηση μετά από λίγο, για να μη γεμίζουν τα κανάλια.</p>
+${tester}
+${cards || '<div class="card"><p class="muted">Καμία αυτόματη απάντηση ακόμα.</p></div>'}
+${form}
 ${footer()}
 </div>`);
 }
@@ -647,4 +721,4 @@ ${footer()}
 </div>`);
 }
 
-module.exports = { CSS, FAVICON_SVG, CLIENT_JS, escapeHtml, statsPage, historyPage, membersPage, guestsPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };
+module.exports = { CSS, FAVICON_SVG, CLIENT_JS, repliesPage, escapeHtml, statsPage, historyPage, membersPage, guestsPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };

@@ -189,6 +189,23 @@ https://cs.uowm.gr/en/home-page/members-of-the-staff/. The file is read on every
 restart. It is gitignored so staff addresses are not republished in the repository. Staff not on the list can be
 given the role manually.
 
+## Automatic replies
+
+When a message matches a rule, the bot replies to it and deletes its reply after the rule's delay
+(0 keeps it), so the answer reaches the person without filling the channel. Each member gets a
+given rule's reply at most once every 2 minutes. Rules are managed in the admin panel
+(Απαντήσεις): a name, the triggers, the reply and the delay, with a box to test a message
+against them. A fresh install starts with one rule that points people asking for old exam papers
+to the pinned messages and the semester channel.
+
+A trigger is a phrase on its own line; it matches when every word of it starts a word of the
+message, in any order. Capitals, accents and greeklish do not matter (`lib/textMatch.js`), so
+`παλια θεματ` matches both "Πού είναι τα παλιά θέματα;" and "pou einai ta palia 8emata". In a
+reply, `{εξάμηνα}` becomes a link to `SEMESTER_CHANNEL_ID`.
+
+Reading what messages say needs the privileged **Message Content Intent**, enabled in the
+developer portal (Bot page) before starting this version; without it Discord refuses the login.
+
 ## Semester ping
 
 When a member gets a role that lets them pick semesters (Φοιτητής after verification, or the guest
