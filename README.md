@@ -189,6 +189,26 @@ https://cs.uowm.gr/en/home-page/members-of-the-staff/. The file is read on every
 restart. It is gitignored so staff addresses are not republished in the repository. Staff not on the list can be
 given the role manually.
 
+## Role buttons
+
+Messages with buttons that give or take a role (for example the semesters), made in the admin
+panel (Κουμπιά ρόλων) and posted by the bot, replacing Dyno's reaction roles. Each message has a
+title, text, colour, footer, footer image (the server icon or an https URL) and up to 25 buttons, each with a role, label, emoji (server or
+Unicode) and colour, with a Discord-style preview. "Αποθήκευση και δημοσίευση" posts it in the
+chosen channel; later edits update the same message in place, and moving it to another channel
+replaces it there.
+
+A click looks at the roles the member has right now: if they have the role it is removed,
+otherwise it is added, so roles given earlier by Dyno or by hand behave the same. The reply is
+visible only to them. Semester roles are only given to members allowed to have them
+(`SEMESTER_ALLOWED_ROLE_IDS`, by default Φοιτητής); others are told to verify first. A button can
+only give one of its own menu's roles, and the panel refuses `@everyone`, bot-managed roles and
+roles above the bot's. On a fresh install a draft of the semester message is created from
+`SEMESTER_ROLE_IDS`, in Α-Η order, using the `sem_a`...`sem_h` server emojis when they exist.
+
+To switch from Dyno: publish the semester message in the semester channel, then delete Dyno's
+message and its reaction-role setup. Members keep their roles.
+
 ## Automatic replies
 
 When a message matches a rule, the bot replies to it and deletes its reply after the rule's delay

@@ -124,6 +124,30 @@ input.filter, .toolbar input[type=search] { width:100%; background:var(--bg); co
 .match.yes { background:rgba(79,184,186,.12); border:1px solid rgba(79,184,186,.4); }
 .match.no { background:rgba(244,161,28,.10); border:1px solid rgba(244,161,28,.4); }
 @media (max-width:760px) { .rule, .form-grid { grid-template-columns:1fr; } }
+.dembed { position:relative; background:#2b2d31; border-radius:4px; padding:12px 16px 14px 18px; max-width:520px; overflow:hidden; }
+.dembed .bar { position:absolute; left:0; top:0; width:4px; height:100%; }
+.dembed .t { font-weight:700; color:#f2f3f5; margin-bottom:6px; }
+.dembed .f { font-size:12px; color:#b5bac1; margin-top:10px; display:flex; align-items:center; gap:8px; }
+.dembed .f img { width:20px; height:20px; border-radius:50%; }
+.block-group { display:flex; flex-direction:column; gap:12px; }
+.form-grid label.block select, .form-grid label.block input[type=text] { margin-top:2px; }
+.dmsg { background:#313338; border-radius:8px; padding:14px; }
+.dbuttons { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; max-width:560px; }
+.dbtn { display:inline-flex; align-items:center; gap:6px; border-radius:4px; padding:6px 14px; font-size:14px; font-weight:500; color:#fff; }
+.dbtn.primary { background:#5865f2; } .dbtn.secondary { background:#4e5058; } .dbtn.success { background:#248046; } .dbtn.danger { background:#da373c; }
+.dbtn img { width:18px; height:18px; }
+.btn-rows { width:100%; border-collapse:collapse; font-size:14px; }
+.btn-rows th { text-align:left; color:var(--muted); font-weight:600; padding:6px; }
+.btn-rows td { padding:4px 6px; vertical-align:top; }
+.btn-rows input[type=text], .btn-rows input[type=number], .btn-rows select { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 8px; font:inherit; }
+.btn-rows td.pos { width:64px; }
+input[type=color] { width:64px; height:36px; padding:2px; background:var(--bg); border:1px solid var(--line); border-radius:8px; }
+.status { font-size:13px; color:var(--muted); }
+.status b { color:var(--teal); }
+.card-scroll { overflow-x:auto; margin:8px 0; }
+.btn-rows input[name=btn_emoji_text] { margin-top:4px; }
+.preview-inline .h1, .preview-inline .h2, .preview-inline .h3 { color:#f2f3f5; font-weight:700; }
+.preview-inline .blank { height:10px; }
 .greet { margin:-4px 0 18px; }
 .greet h1 { margin:0 0 2px; font-size:24px; color:var(--white); }
 .greet p { margin:0; }
@@ -259,7 +283,7 @@ function avatarUrl(user) {
 
 const footer = () => `<footer class="foot"><span>Πληροφορική UoWM · Πίνακας διαχείρισης του bot</span><span>Ανεπίσημη υπηρεσία από φοιτητές</span></footer>`;
 
-const TABS = [["/", "Αρχική"], ["/stats", "Στατιστικά"], ["/members", "Μέλη"], ["/guests", "Προσωρινές άδειες"], ["/replies", "Απαντήσεις"], ["/settings", "Ρυθμίσεις"], ["/verify-text", "Μήνυμα επαλήθευσης"], ["/periods", "Περίοδοι"], ["/faculty", "Καθηγητές"]];
+const TABS = [["/", "Αρχική"], ["/stats", "Στατιστικά"], ["/members", "Μέλη"], ["/guests", "Προσωρινές άδειες"], ["/replies", "Απαντήσεις"], ["/role-menus", "Κουμπιά ρόλων"], ["/settings", "Ρυθμίσεις"], ["/verify-text", "Μήνυμα επαλήθευσης"], ["/periods", "Περίοδοι"], ["/faculty", "Καθηγητές"]];
 
 function header(user, csrf, active) {
     const tabs = TABS.map(([href, label]) => `<a href="${href}"${href === active ? ' class="on"' : ""}>${label}</a>`).join("");
@@ -401,6 +425,94 @@ ${banner({ errors })}${done ? `<div class="banner ok">${escapeHtml(done)}</div>`
 <p class="muted">Όταν κάποιος γράψει κάτι που ταιριάζει, το bot του απαντά και σβήνει την απάντηση μετά από λίγο, για να μη γεμίζουν τα κανάλια.</p>
 ${tester}
 ${cards || '<div class="card"><p class="muted">Καμία αυτόματη απάντηση ακόμα.</p></div>'}
+${form}
+${footer()}
+</div>`);
+}
+
+// The menu as Discord would show it. menu.descriptionHtml: rendered markdown.
+function discordMenuPreview(menu, roleName) {
+    const emojiHtml = (e) => {
+        const m = String(e || "").match(/^<a?:[\w~]+:(\d{17,20})>$/);
+        if (m) return `<img src="https://cdn.discordapp.com/emojis/${m[1]}.png?size=32" alt="">`;
+        return e ? `<span>${escapeHtml(e)}</span>` : "";
+    };
+    const buttons = menu.buttons.map((b) => `<span class="dbtn ${escapeHtml(b.style || "primary")}">${emojiHtml(b.emoji)}${escapeHtml(b.label || roleName(b.roleId) || "Ρόλος")}</span>`).join("");
+    return `<div class="dmsg"><div class="dembed"><svg class="bar" viewBox="0 0 4 10" preserveAspectRatio="none"><rect width="4" height="10" fill="${escapeHtml(menu.color || "#F4A11C")}"/></svg>
+${menu.title ? `<div class="t">${escapeHtml(menu.title)}</div>` : ""}<div class="preview-inline">${menu.descriptionHtml || ""}</div>${menu.footer ? `<div class="f">${menu.footerIconSrc ? `<img src="${escapeHtml(menu.footerIconSrc)}" alt="">` : ""}${escapeHtml(menu.footer)}</div>` : ""}</div>
+<div class="dbuttons">${buttons || '<span class="muted">Κανένα κουμπί.</span>'}</div></div>`;
+}
+
+// menus: [{ ...menu, descriptionHtml, channelName }]; options: { roles, channels, emojis }
+function roleMenusPage({ user, csrf, menus, edit = null, options, errors = [], done = null }) {
+    const roleName = (id) => options.roles.find((r) => r.id === id)?.name;
+    const list = menus.map((m) => `<div class="card"><div class="rule">
+  <div>
+    <h3>${escapeHtml(m.name)}</h3>
+    <div class="status">${m.messageId ? `Δημοσιευμένο στο <b>#${escapeHtml(m.channelName || m.channelId)}</b>` : "Πρόχειρο, δεν έχει δημοσιευτεί"} · ${m.buttons.length} κουμπιά</div>
+    <div class="rule-actions"><a class="button ghost" href="/role-menus?edit=${m.id}#form">Επεξεργασία</a></div>
+  </div>
+  <div>${discordMenuPreview(m, roleName)}</div>
+</div></div>`).join("");
+
+    let form = "";
+    if (edit) {
+        const e = edit;
+        const channelOpts = options.channels.map((c) => `<option value="${escapeHtml(c.id)}"${c.id === e.channelId ? " selected" : ""}>#${escapeHtml(c.name)}${c.category ? ` (${escapeHtml(c.category)})` : ""}</option>`).join("");
+        const rows = [...e.buttons, ...Array.from({ length: 3 }, () => ({ roleId: "", label: "", emoji: "", style: "primary" }))].map((b, i) => {
+            const roleOpts = options.roles.map((r) => `<option value="${escapeHtml(r.id)}"${r.id === b.roleId ? " selected" : ""}>@${escapeHtml(r.name)}</option>`).join("");
+            const isServerEmoji = options.emojis.some((em) => em.code === b.emoji);
+            const emojiOpts = options.emojis.map((em) => `<option value="${escapeHtml(em.code)}"${em.code === b.emoji ? " selected" : ""}>:${escapeHtml(em.name)}:</option>`).join("");
+            const styleOpts = [["primary", "Μπλε"], ["secondary", "Γκρι"], ["success", "Πράσινο"], ["danger", "Κόκκινο"]].map(([v, l]) => `<option value="${v}"${v === (b.style || "primary") ? " selected" : ""}>${l}</option>`).join("");
+            return `<tr>
+<td class="pos"><input type="number" name="btn_pos" value="${i + 1}" min="1" max="99" aria-label="Σειρά"></td>
+<td><select name="btn_role" aria-label="Ρόλος"><option value="">(κανένας, το κουμπί αγνοείται)</option>${roleOpts}</select></td>
+<td><input type="text" name="btn_label" maxlength="80" value="${escapeHtml(b.label || "")}" placeholder="Όνομα ρόλου" aria-label="Κείμενο"></td>
+<td><select name="btn_emoji" aria-label="Emoji του server"><option value="">(κανένα)</option>${emojiOpts}</select><input type="text" name="btn_emoji_text" maxlength="16" value="${escapeHtml(isServerEmoji ? "" : b.emoji || "")}" placeholder="ή emoji, π.χ. 🔹" aria-label="Unicode emoji"></td>
+<td><select name="btn_style" aria-label="Χρώμα">${styleOpts}</select></td>
+</tr>`;
+        }).join("");
+        form = `<div class="card" id="form">
+  <h2>${e.id ? `Επεξεργασία: ${escapeHtml(e.name)}` : "Νέο μήνυμα με κουμπιά"}</h2>
+  <form method="post" action="/role-menus/save">
+    ${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(e.id || "")}">
+    <div class="form-grid">
+      <label class="block">Όνομα (μόνο για τον πίνακα)<input type="text" name="name" maxlength="100" value="${escapeHtml(e.name)}" required></label>
+      <label class="block">Κανάλι<select name="channelId"><option value="">(διάλεξε κανάλι)</option>${channelOpts}</select></label>
+      <label class="block">Τίτλος<input type="text" name="title" maxlength="256" value="${escapeHtml(e.title)}"></label>
+      <label class="block">Χρώμα<input type="color" name="color" value="${escapeHtml(e.color || "#F4A11C")}"></label>
+      <label class="block">Κείμενο (markdown του Discord)<textarea name="description" maxlength="4000">${escapeHtml(e.description)}</textarea></label>
+      <div class="block-group">
+        <label class="block">Footer<input type="text" name="footer" maxlength="2048" value="${escapeHtml(e.footer)}"></label>
+        <label class="block">Εικόνα footer
+          <select name="footerIconMode">
+            <option value=""${!e.footerIcon ? " selected" : ""}>Καμία</option>
+            <option value="server"${e.footerIcon === "server" ? " selected" : ""}>Το icon του server</option>
+            <option value="url"${e.footerIcon && e.footerIcon !== "server" ? " selected" : ""}>Από διεύθυνση (URL)</option>
+          </select>
+          <input type="text" name="footerIconUrl" maxlength="500" value="${escapeHtml(e.footerIcon && e.footerIcon !== "server" ? e.footerIcon : "")}" placeholder="https://... (μόνο για «Από διεύθυνση»)">
+        </label>
+      </div>
+    </div>
+    <h2>Κουμπιά</h2>
+    <div class="count">Έως 25. Κάθε κουμπί δίνει τον ρόλο του, ή τον αφαιρεί αν το μέλος τον έχει ήδη. Η σειρά ορίζεται από τον αριθμό αριστερά. Αν χρειάζεστε περισσότερες κενές γραμμές, αποθηκεύστε και θα εμφανιστούν νέες.</div>
+    <div class="card-scroll"><table class="btn-rows"><tr><th>#</th><th>Ρόλος</th><th>Κείμενο</th><th>Emoji</th><th>Χρώμα</th></tr>${rows}</table></div>
+    <div class="actions sticky">
+      ${e.id ? '<a class="button ghost" href="/role-menus">Ακύρωση</a>' : ""}
+      <button class="ghost" type="submit" name="action" value="save">Αποθήκευση</button>
+      <button class="primary" type="submit" name="action" value="publish">${e.messageId ? "Αποθήκευση και ενημέρωση στο Discord" : "Αποθήκευση και δημοσίευση"}</button>
+    </div>
+  </form>
+  ${e.id ? `<form method="post" action="/role-menus/delete" class="inline" data-confirm="Να διαγραφεί το «${escapeHtml(e.name)}»; Θα σβηστεί και το μήνυμα από το Discord. Οι ρόλοι των μελών δεν αλλάζουν.">${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(e.id)}"><button class="danger" type="submit">Διαγραφή</button></form>` : ""}
+</div>`;
+    }
+
+    return layout("Κουμπιά ρόλων", `<div class="wrap">
+${header(user, csrf, "/role-menus")}
+${banner({ errors })}${done ? `<div class="banner ok">${escapeHtml(done)}</div>` : ""}
+<p class="muted">Μηνύματα με κουμπιά που δίνουν ή αφαιρούν ρόλους, π.χ. τα εξάμηνα. Κάθε πάτημα κοιτάει αν το μέλος έχει ήδη τον ρόλο, οπότε δουλεύουν και οι ρόλοι που δόθηκαν παλιότερα από το Dyno. Τα εξάμηνα τα παίρνουν μόνο όσοι επιτρέπεται (Ρυθμίσεις > Εξάμηνα).</p>
+${list || '<div class="card"><p class="muted">Κανένα μήνυμα ακόμα.</p></div>'}
+${edit ? "" : '<p><a class="button primary" href="/role-menus?edit=new#form">Νέο μήνυμα με κουμπιά</a></p>'}
 ${form}
 ${footer()}
 </div>`);
@@ -721,4 +833,4 @@ ${footer()}
 </div>`);
 }
 
-module.exports = { CSS, FAVICON_SVG, CLIENT_JS, repliesPage, escapeHtml, statsPage, historyPage, membersPage, guestsPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };
+module.exports = { CSS, FAVICON_SVG, CLIENT_JS, repliesPage, roleMenusPage, escapeHtml, statsPage, historyPage, membersPage, guestsPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };
