@@ -6,8 +6,8 @@ const { PREFIX, handleClick } = require("../../lib/roleMenus");
 module.exports = async (interaction) => {
     if (!interaction.isButton() || !interaction.customId.startsWith(`${PREFIX}:`)) return;
     try {
-        const verifyInfo = await getMeta(pool, "verify_info_message").catch(() => null);
-        await handleClick(interaction, { verifyChannelId: verifyInfo ? verifyInfo.split(":")[0] : null });
+        const verifyInfo = process.env.VERIFY_CHANNEL_ID ? null : await getMeta(pool, "verify_info_message").catch(() => null);
+        await handleClick(interaction, { verifyChannelId: process.env.VERIFY_CHANNEL_ID || (verifyInfo ? verifyInfo.split(":")[0] : null) });
     } catch (err) {
         console.error(`Role button failed: ${err.message}`);
         const reply = { content: "Κάτι πήγε στραβά. Δοκίμασε ξανά σε λίγο." };

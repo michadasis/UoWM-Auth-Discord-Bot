@@ -625,6 +625,7 @@ const GROUPS = [
     ["semesters", "Εξάμηνα"],
     ["staff", "Διαχείριση"],
     ["channels", "Κανάλια"],
+    ["welcome", "Καλωσόρισμα"],
     ["bot", "Bot"],
 ];
 

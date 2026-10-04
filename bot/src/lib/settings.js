@@ -16,6 +16,9 @@ const DEFINITIONS = [
     { key: "SEMESTER_PING_SECONDS", type: "number", group: "semesters", label: "Διαγραφή του ping μετά από", help: "Δευτερόλεπτα, αν δεν διαλέξουν εξάμηνο νωρίτερα. Προεπιλογή 5.", min: 1, max: 86400 },
     { key: "ADMIN_CHANNEL_ID", type: "channel", group: "channels", label: "Κανάλι καταγραφής", help: "Ιδιωτικό κανάλι για Admins και Moderators." },
     { key: "GUEST_CHANNEL_ID", type: "channel", group: "channels", label: "Κανάλι προσωρινών αδειών", help: "Καταγραφή των προσωρινών αδειών." },
+    { key: "VERIFY_CHANNEL_ID", type: "channel", group: "channels", label: "Κανάλι επαλήθευσης", help: "Όπου γίνεται το /auth. Χρησιμοποιείται στα links προς την επαλήθευση." },
+    { key: "WELCOME_CHANNEL_ID", type: "channel", group: "welcome", label: "Κανάλι καλωσορίσματος", help: "Εδώ καλωσορίζεται κάθε νέο μέλος. Κενό: χωρίς καλωσόρισμα." },
+    { key: "WELCOME_MESSAGE", type: "text", group: "welcome", label: "Μήνυμα καλωσορίσματος", help: "{μέλος} γίνεται mention του νέου μέλους και {επαλήθευση} link στο κανάλι επαλήθευσης. Κενό: το προεπιλεγμένο.", maxLength: 500 },
     { key: "BOT_STATUS", type: "lines", group: "bot", label: "Κατάσταση bot", help: "Μία ανά γραμμή, εμφανίζονται με τη σειρά. Ξεκινήστε με Playing, Watching, Listening to ή Competing in για τον αντίστοιχο τύπο. Αλλιώς εμφανίζεται ως έχει.", maxLength: 128, maxLines: 20 },
     { key: "BOT_STATUS_INTERVAL", type: "number", group: "bot", label: "Αλλαγή κατάστασης κάθε", help: "Λεπτά, όταν υπάρχουν πολλές καταστάσεις. Προεπιλογή 5.", min: 1, max: 1440 },
 ];

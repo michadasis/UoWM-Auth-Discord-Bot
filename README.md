@@ -189,6 +189,14 @@ https://cs.uowm.gr/en/home-page/members-of-the-staff/. The file is read on every
 restart. It is gitignored so staff addresses are not republished in the repository. Staff not on the list can be
 given the role manually.
 
+## Welcome message
+
+When someone joins, the bot posts in `WELCOME_CHANNEL_ID` (replacing Dyno's welcomer):
+"Καλώς ήρθες @μέλος, κάνε την επαλήθευση για να έχεις πρόσβαση: #επαλήθευση." Only the new member
+is pinged; bots are not welcomed. The channel, the text (`WELCOME_MESSAGE`, with `{μέλος}` and
+`{επαλήθευση}`) and the verify channel (`VERIFY_CHANNEL_ID`) are set in the admin panel
+(Ρυθμίσεις > Καλωσόρισμα and Κανάλια). Without a welcome channel there is no welcome.
+
 ## Role buttons
 
 Messages with buttons that give or take a role (for example the semesters), made in the admin
