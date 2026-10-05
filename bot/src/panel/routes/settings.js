@@ -9,9 +9,10 @@ const colors = require("../../lib/colors");
 const { adminLog } = require("../../lib/adminLog");
 const panelLog = require("../../lib/panelLog");
 const { send, redirect, readForm, sameOrigin } = require("../http");
+const access = require("../access");
 
 module.exports = function settingsRoutes(ctx) {
-    const { client, pool, origin, guild, withUser } = ctx;
+    const { client, pool, origin, guild, withUser, staffRoles } = ctx;
 
     async function renderSettings(res, who, extra = {}, status = 200) {
         const g = await guild();
@@ -54,6 +55,11 @@ module.exports = function settingsRoutes(ctx) {
             await g.channels.fetch();
             const current = (await settings.listSettings(pool)).filter((d) => d.group !== "welcome");
             const { changes, errors } = readSettingsForm(form, current, g);
+            if (!errors.length) {
+                const after = { ...process.env };
+                for (const c of changes) after[c.key] = c.value === null ? current.find((d) => d.key === c.key).envValue : c.value;
+                if (!access.canUsePanel(who.member, staffRoles(after))) errors.push("Με αυτή την αλλαγή θα έχανες κι εσύ την πρόσβαση στον πίνακα. Πρόσθεσε τον ρόλο σου ή το ID σου στην Πρόσβαση στον πίνακα.");
+            }
             if (errors.length) return renderSettings(res, who, { errors }, 400);
 
             for (const change of changes) await settings.setSetting(pool, change.key, change.value, who.user.id);

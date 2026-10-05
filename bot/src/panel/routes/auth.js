@@ -5,9 +5,12 @@ const session = require("../session");
 const oauth = require("../discordOAuth");
 const access = require("../access");
 const { send, redirect, readForm, sameOrigin } = require("../http");
+const { setMeta } = require("../../lib/messageStats");
+const panelLog = require("../../lib/panelLog");
+const { PermissionFlagsBits } = require("discord.js");
 
 module.exports = function authRoutes(ctx) {
-    const { config, fetchUser, origin, redirectUri, loginLimit, guild, staffRoles, currentUser } = ctx;
+    const { pool, config, fetchUser, origin, redirectUri, loginLimit, guild, staffRoles, currentUser, withUser, checkedForm } = ctx;
 
     return {
         "GET /panel.css": async (req, res) => send(res, 200, pages.CSS, { "Content-Type": "text/css; charset=utf-8", "Cache-Control": "public, max-age=3600" }),
@@ -51,7 +54,7 @@ module.exports = function authRoutes(ctx) {
             }
 
             console.log(`Panel: ${member.user.tag} (${user.id}) logged in`);
-            const value = session.sign(config.sessionSecret, { uid: user.id, csrf: session.randomToken(), exp: Date.now() + session.SESSION_TTL_MS });
+            const value = session.sign(config.sessionSecret, { uid: user.id, csrf: session.randomToken(), iat: Date.now(), exp: Date.now() + session.SESSION_TTL_MS });
             return redirect(res, "/", [clearState, session.cookie(session.SESSION_COOKIE, value, session.SESSION_TTL_MS)]);
         },
 
@@ -64,5 +67,27 @@ module.exports = function authRoutes(ctx) {
             }
             return redirect(res, "/login?n=out", [session.clearCookie(session.SESSION_COOKIE)]);
         },
+
+        // Ends every session of this member, on every device.
+        "POST /logout/all": async (req, res) => withUser(req, res, async (who) => {
+            const form = await checkedForm(req, res, who, "/");
+            if (!form) return;
+            await setMeta(pool, `panel_logout:${who.user.id}`, String(Date.now()));
+            await panelLog.addEntry(pool, who.user.id, "Πρόσβαση", "Αποσύνδεση από όλες τις συσκευές");
+            return redirect(res, "/login?n=out", [session.clearCookie(session.SESSION_COOKIE)]);
+        }),
+
+        // Ends every session of every member. Only for the owner and Administrators.
+        "POST /logout/everyone": async (req, res) => withUser(req, res, async (who) => {
+            const form = await checkedForm(req, res, who, "/");
+            if (!form) return;
+            const m = who.member;
+            if (m.id !== m.guild.ownerId && !m.permissions?.has(PermissionFlagsBits.Administrator)) {
+                return send(res, 403, pages.messagePage("Δεν επιτρέπεται", "Μόνο ο owner και όσοι έχουν Administrator μπορούν να αποσυνδέσουν όλους.", '<a class="button ghost" href="/">Αρχική</a>'));
+            }
+            await setMeta(pool, "panel_logout_all", String(Date.now()));
+            await panelLog.addEntry(pool, who.user.id, "Πρόσβαση", "Αποσύνδεση όλων από τον πίνακα");
+            return redirect(res, "/login?n=out", [session.clearCookie(session.SESSION_COOKIE)]);
+        }),
     };
 };

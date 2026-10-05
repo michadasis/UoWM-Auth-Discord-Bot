@@ -5,6 +5,7 @@ const { dayKey, dailyTotals } = require("../../lib/messageStats");
 const panelLog = require("../../lib/panelLog");
 const { healthChecks } = require("../health");
 const { send } = require("../http");
+const { PermissionFlagsBits } = require("discord.js");
 
 module.exports = function homeRoutes(ctx) {
     const { client, pool, config, guild, withUser, formatWhen, shortDay } = ctx;
@@ -90,10 +91,28 @@ module.exports = function homeRoutes(ctx) {
             send(res, 200, pages.dashboardPage({
                 user: who.user, csrf: who.csrf, info: await overview(), recent: await recentChanges(5),
                 activity: await activity(), greeting: greeting(),
+                canLogoutEveryone: who.member.id === who.member.guild.ownerId || Boolean(who.member.permissions?.has?.(PermissionFlagsBits.Administrator)),
                 health: await healthChecks({ guild: await guild(), pool, certFile: config.certFile }).catch((err) => [{ status: "warn", text: `Οι έλεγχοι απέτυχαν: ${err.message}` }]),
             }))),
 
-        "GET /history": async (req, res) => withUser(req, res, async (who) =>
-            send(res, 200, pages.historyPage({ user: who.user, csrf: who.csrf, entries: await recentChanges(100) }))),
+        "GET /history": async (req, res, ip, url) => withUser(req, res, async (who) => {
+            const filters = {
+                area: (url.searchParams.get("area") || "").slice(0, 64),
+                userId: /^\d{17,20}$/.test(url.searchParams.get("who") || "") ? url.searchParams.get("who") : "",
+                q: (url.searchParams.get("q") || "").trim().slice(0, 100),
+                page: url.searchParams.get("page"),
+            };
+            const result = await panelLog.queryEntries(pool, filters);
+            const g = await guild();
+            const nameOf = new Map();
+            for (const id of new Set([...result.userIds, ...result.entries.map((e) => e.userId)])) {
+                nameOf.set(id, (await g.members.fetch(id).catch(() => null))?.displayName ?? id);
+            }
+            const entries = result.entries.map((e) => ({ area: e.area, summary: e.summary.replace(/\*\*/g, ""), who: nameOf.get(e.userId), when: formatWhen(e.at) }));
+            return send(res, 200, pages.historyPage({
+                user: who.user, csrf: who.csrf, entries, filters, total: result.total, page: result.page, pages: result.pages,
+                areas: result.areas, people: result.userIds.map((id) => ({ id, name: nameOf.get(id) })).sort((a, b) => a.name.localeCompare(b.name, "el")),
+            }));
+        }),
     };
 };

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, InteractionContextType } = require("discord.js");
 const { handleCode } = require("../../lib/codeEntry");
 
 module.exports = {
@@ -10,7 +10,9 @@ module.exports = {
             .setDescription('Ο εξαψήφιος κωδικός, π.χ. 123456')
             .setRequired(true)
             .setMinLength(6)
-            .setMaxLength(7)),
+            .setMaxLength(7))
+        // Only inside the server, like /auth.
+        .setContexts(InteractionContextType.Guild),
 
     run: async ({ interaction }) => {
         await handleCode(interaction, interaction.options.getString('code', true));

@@ -153,6 +153,21 @@ input[type=color] { width:64px; height:36px; padding:2px; background:var(--bg); 
 .status { font-size:13px; color:var(--muted); }
 .status b { color:var(--teal); }
 .tag.on { color:var(--teal); border-color:rgba(79,184,186,.5); }
+.mini-chart { width:100%; height:auto; display:block; margin:6px 0; }
+.delta { font-size:12px; font-weight:600; margin-left:4px; }
+.delta.up { color:var(--teal); } .delta.down { color:#ff8fa8; }
+table.clicks { margin-top:10px; font-size:13px; }
+table.clicks td, table.clicks th { padding:4px 6px; }
+.meta b.hits { color:var(--teal); }
+a.plain { color:inherit; text-decoration:none; }
+a.plain:hover .person > div > div:first-child { text-decoration:underline; }
+.mention-line { margin-bottom:6px; }
+.embed-image { max-width:100%; border-radius:4px; margin-top:10px; display:block; }
+.session-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
+button.small { padding:6px 10px; font-size:13px; }
+.member-head { display:flex; align-items:center; gap:16px; }
+.member-head img { width:64px; height:64px; border-radius:50%; }
+.member-head h1 { margin:0; font-size:22px; color:var(--white); }
 details.card summary { cursor:pointer; }
 details.card[open] summary { margin-bottom:10px; }
 .form-grid.single { grid-template-columns:1fr; }
@@ -298,8 +313,8 @@ const footer = () => `<footer class="foot"><span>Πληροφορική UoWM · 
 const NAV = [
     ["Επισκόπηση", [["/", "Αρχική"], ["/stats", "Στατιστικά"], ["/history", "Ιστορικό"]]],
     ["Μέλη", [["/members", "Μέλη"], ["/guests", "Προσωρινές άδειες"]]],
-    ["Μηνύματα", [["/verify-text", "Μήνυμα επαλήθευσης"], ["/welcome", "Καλωσόρισμα"], ["/role-menus", "Κουμπιά ρόλων"], ["/replies", "Απαντήσεις"]]],
-    ["Ρυθμίσεις", [["/settings", "Ρόλοι και κανάλια"], ["/periods", "Περίοδοι"], ["/faculty", "Καθηγητές"]]],
+    ["Μηνύματα", [["/announcements", "Ανακοινώσεις"], ["/verify-text", "Μήνυμα επαλήθευσης"], ["/welcome", "Καλωσόρισμα"], ["/role-menus", "Κουμπιά ρόλων"], ["/replies", "Απαντήσεις"]]],
+    ["Ρυθμίσεις", [["/settings", "Ρόλοι και κανάλια"], ["/periods", "Περίοδοι"], ["/faculty", "Καθηγητές"], ["/backup", "Αντίγραφο ασφαλείας"]]],
 ];
 
 function navHtml(active) {
@@ -339,7 +354,7 @@ function membersPage({ user, csrf, view }) {
         .map(([v, l]) => `<option value="${v}"${v === view.aff ? " selected" : ""}>${l}${v && view.counts[v] !== undefined ? ` (${view.counts[v]})` : ""}</option>`).join("");
     const link = (page) => `/members?${new URLSearchParams({ ...(view.q ? { q: view.q } : {}), ...(view.aff ? { aff: view.aff } : {}), page })}`;
     const rows = view.items.map((m) => `<tr>
-<td>${personCell(m)}</td>
+<td><a class="plain" href="/members/view?id=${escapeHtml(m.id)}">${personCell(m)}</a></td>
 <td>${escapeHtml(AFF_LABELS[m.affiliation] ?? m.affiliation)}${m.inServer ? "" : ' <span class="tag off">εκτός server</span>'}</td>
 <td class="date">${escapeHtml(m.verifiedAt)}</td>
 <td class="num"><form method="post" action="/members/unverify" class="inline" data-confirm="Να αφαιρεθεί η επαλήθευση του ${escapeHtml(m.name)}; Θα χάσει τους ρόλους του και θα πρέπει να ξανακάνει /auth.">${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(m.id)}"><button class="danger" type="submit">Αφαίρεση</button></form></td>
@@ -353,11 +368,134 @@ ${view.done ? `<div class="banner ok">${escapeHtml(view.done)}</div>` : ""}
     <label>Ιδιότητα<select name="aff">${affOptions}</select></label>
     <button class="primary" type="submit">Αναζήτηση</button>
   </form>
-  <p class="count">${view.total} επαληθευμένα μέλη${view.q || view.aff ? " με αυτά τα κριτήρια" : ""}</p>
+  <p class="count">${view.total} επαληθευμένα μέλη${view.q || view.aff ? " με αυτά τα κριτήρια" : ""} · <a href="/members.csv?${escapeHtml(new URLSearchParams({ ...(view.q ? { q: view.q } : {}), ...(view.aff ? { aff: view.aff } : {}) }).toString())}">Λήψη CSV</a></p>
   ${rows ? `<table class="list"><tr><th>Μέλος</th><th>Ιδιότητα</th><th>Επαλήθευση</th><th></th></tr>${rows}</table>` : '<p class="muted">Κανένα μέλος.</p>'}
   ${view.pages > 1 ? `<div class="pager">${view.page > 1 ? `<a class="button ghost" href="${escapeHtml(link(view.page - 1))}">Προηγούμενη</a>` : ""}<span class="muted">Σελίδα ${view.page} από ${view.pages}</span>${view.page < view.pages ? `<a class="button ghost" href="${escapeHtml(link(view.page + 1))}">Επόμενη</a>` : ""}</div>` : ""}
 </div>
 <p class="muted">Η αφαίρεση σβήνει τα δεδομένα του μέλους και αφαιρεί τους ρόλους επαλήθευσης και εξαμήνων, όπως το /force-unverify. Καταγράφεται στο admin log.</p>
+${footer()}
+</div>`);
+}
+
+// member: from people.memberDetail. history: panel log entries that mention them.
+function memberPage({ user, csrf, member: m, history }) {
+    const fact = (label, value) => `<li><span class="muted">${escapeHtml(label)}</span><span>${value}</span></li>`;
+    const roles = m.roles.length ? `<div class="chips">${m.roles.map((r) => `<span class="tag">@${escapeHtml(r.name)}</span>`).join("")}</div>` : '<p class="muted">Κανένας ρόλος.</p>';
+    return layout(m.name, `<div class="wrap">
+${header(user, csrf, "/members")}
+<p><a href="/members">← Όλα τα μέλη</a></p>
+<div class="card member-head">
+  <img src="${escapeHtml(avatarFor(m))}" alt="">
+  <div><h1>${escapeHtml(m.name)}</h1><div class="muted">${m.username ? `@${escapeHtml(m.username)} · ` : ""}${escapeHtml(m.id)}${m.inServer ? "" : ' · <span class="tag off">εκτός server</span>'}</div></div>
+</div>
+<div class="two">
+  <div class="card">
+    <h2>Στοιχεία</h2>
+    <ul class="facts">
+      ${fact("Ιδιότητα", m.affiliation ? escapeHtml(AFF_LABELS[m.affiliation] ?? m.affiliation) : "δεν έχει επαληθευτεί")}
+      ${m.verifiedAt ? fact("Επαλήθευση", escapeHtml(m.verifiedAt)) : ""}
+      ${m.joinedAt ? fact("Στον server από", escapeHtml(m.joinedAt)) : ""}
+      ${m.guest ? fact("Προσωρινή άδεια", `${escapeHtml(m.guest.reason || "")}${m.guest.givenBy ? ` <span class="muted">· από ${escapeHtml(m.guest.givenBy)}</span>` : ""}`) : ""}
+    </ul>
+    <div class="rule-actions">
+      ${m.affiliation ? `<form method="post" action="/members/unverify" class="inline" data-confirm="Να αφαιρεθεί η επαλήθευση του ${escapeHtml(m.name)}; Θα χάσει τους ρόλους του και θα πρέπει να ξανακάνει /auth.">${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(m.id)}"><button class="danger" type="submit">Αφαίρεση επαλήθευσης</button></form>` : ""}
+      ${m.guest ? `<form method="post" action="/guests/remove" class="inline" data-confirm="Να αφαιρεθεί η προσωρινή άδεια του ${escapeHtml(m.name)};">${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(m.id)}"><button class="danger" type="submit">Αφαίρεση προσωρινής άδειας</button></form>` : ""}
+    </div>
+  </div>
+  <div class="card">
+    <h2>Ρόλοι</h2>
+    ${roles}
+  </div>
+</div>
+<div class="card">
+  <h2>Αλλαγές από τον πίνακα</h2>
+  ${history.length ? recentList(history) : '<p class="muted">Καμία αλλαγή από τον πίνακα για αυτό το μέλος.</p>'}
+</div>
+${footer()}
+</div>`);
+}
+
+// list: recent announcements. edit: the one in the editor (or null). roles, channels: for the selects.
+function announcementsPage({ user, csrf, list, edit = null, roles, channels, errors = [], done = null }) {
+    const status = (a) => a.sentAt ? `Στάλθηκε ${escapeHtml(a.when)}` : a.lastError ? `<span class="tag off">απέτυχε</span> ${escapeHtml(a.lastError)}` : a.sendAt ? `Προγραμματισμένη για ${escapeHtml(a.when)}` : "Πρόχειρο";
+    const rows = list.map((a) => `<tr data-row><td><a href="/announcements?edit=${a.id}#form">${escapeHtml(a.title || a.description.slice(0, 60) || "(χωρίς τίτλο)")}</a></td><td>${a.channelName ? `#${escapeHtml(a.channelName)}` : ""}</td><td>${status(a)}</td></tr>`).join("");
+    let form = "";
+    if (edit) {
+        const e = edit;
+        const sent = Boolean(e.messageId);
+        const channelOpts = channels.map((c) => `<option value="${escapeHtml(c.id)}"${c.id === e.channelId ? " selected" : ""}>#${escapeHtml(c.name)}${c.category ? ` (${escapeHtml(c.category)})` : ""}</option>`).join("");
+        const pingOpts = [["", "Χωρίς ping"], ["everyone", "@everyone"], ...roles.map((r) => [r.id, `@${r.name}`])].map(([v, l]) => `<option value="${escapeHtml(v)}"${v === e.ping ? " selected" : ""}>${escapeHtml(l)}</option>`).join("");
+        form = `<div class="card" id="form">
+  <h2>${e.id ? (sent ? "Επεξεργασία σταλμένης ανακοίνωσης" : "Επεξεργασία ανακοίνωσης") : "Νέα ανακοίνωση"}</h2>
+  <form method="post" action="/announcements/save" data-unsaved>
+    ${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(e.id || "")}">
+    <div class="editor-grid">
+      <div class="form-grid single">
+        <label class="block">Κανάλι<select name="channelId"${sent ? " disabled" : ""}><option value="">(διάλεξε κανάλι)</option>${channelOpts}</select>${sent ? `<input type="hidden" name="channelId" value="${escapeHtml(e.channelId || "")}">` : ""}</label>
+        <label class="block">Ping<select name="ping"${sent ? " disabled" : ""}>${pingOpts}</select>${sent ? '<span class="count">Το ping δεν αλλάζει σε σταλμένη ανακοίνωση.</span>' : ""}</label>
+        <label class="block">Τίτλος<input type="text" name="title" maxlength="256" value="${escapeHtml(e.title)}" data-live-text="#ann-title"></label>
+        <label class="block">Κείμενο (markdown του Discord)<textarea name="description" maxlength="4000" data-live-preview="/announcements/preview" data-preview-target="#ann-desc">${escapeHtml(e.description)}</textarea></label>
+        <label class="block">Footer<input type="text" name="footer" maxlength="2048" value="${escapeHtml(e.footer)}" data-live-text="#ann-footer"></label>
+        <label class="block">Εικόνα (https://, προαιρετικά)<input type="text" name="imageUrl" maxlength="500" value="${escapeHtml(e.imageUrl)}"></label>
+        <label class="block">Χρώμα<input type="color" name="color" value="${escapeHtml(e.color)}"></label>
+        ${sent ? "" : `<label class="block">Προγραμματισμός (ώρα Ελλάδας)<input type="datetime-local" name="sendAt" value="${escapeHtml(e.sendAtLocal || "")}"></label>`}
+      </div>
+      <div class="card preview-card">
+        <h2>Προεπισκόπηση</h2>
+        <div class="dmsg">${e.ping ? `<div class="mention-line"><span class="mention">${escapeHtml(e.ping === "everyone" ? "@everyone" : `@${roles.find((r) => r.id === e.ping)?.name ?? "ρόλος"}`)}</span></div>` : ""}<div class="dembed"><svg class="bar" viewBox="0 0 4 10" preserveAspectRatio="none"><rect width="4" height="10" fill="${escapeHtml(e.color)}"/></svg>
+          <div class="t" id="ann-title"${e.title ? "" : " hidden"}>${escapeHtml(e.title)}</div><div class="preview-inline" id="ann-desc">${e.descriptionHtml || ""}</div>${e.imageUrl ? `<img class="embed-image" src="${escapeHtml(e.imageUrl)}" alt="">` : ""}<div class="f"${e.footer ? "" : " hidden"}><span id="ann-footer">${escapeHtml(e.footer)}</span></div></div></div>
+      </div>
+    </div>
+    <div class="actions sticky">
+      ${!sent && e.ping !== undefined ? '<label class="confirm"><input type="checkbox" name="confirm" value="1"> Θα γίνει ping (αν έχει επιλεγεί)</label>' : ""}
+      <a class="button ghost" href="/announcements">Ακύρωση</a>
+      ${sent ? '<button class="primary" type="submit" name="action" value="update">Αποθήκευση και ενημέρωση στο Discord</button>' : `<button class="ghost" type="submit" name="action" value="draft">Πρόχειρο</button><button class="ghost" type="submit" name="action" value="schedule">Προγραμματισμός</button><button class="primary" type="submit" name="action" value="now">Αποστολή τώρα</button>`}
+    </div>
+  </form>
+  ${e.id ? `<form method="post" action="/announcements/delete" class="inline" data-confirm="Να διαγραφεί η ανακοίνωση;">${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(e.id)}">${sent ? '<label class="envbox"><input type="checkbox" name="fromDiscord" value="1"> και από το Discord</label>' : ""}<button class="danger" type="submit">Διαγραφή</button></form>` : ""}
+</div>`;
+    }
+    return layout("Ανακοινώσεις", `<div class="wrap">
+${header(user, csrf, "/announcements")}
+${banner({ errors })}${done ? `<div class="banner ok">${escapeHtml(done)}</div>` : ""}
+<p class="muted">Γράψτε μια ανακοίνωση και στείλτε τη τώρα ή σε συγκεκριμένη ώρα. Μια σταλμένη ανακοίνωση μπορεί να διορθωθεί αργότερα, χωρίς νέο ping.</p>
+${edit ? "" : '<p><a class="button primary" href="/announcements?edit=new#form">Νέα ανακοίνωση</a></p>'}
+${form}
+<div class="card">
+  <h2>Ανακοινώσεις</h2>
+  ${rows ? `<table class="list"><tr><th>Τίτλος</th><th>Κανάλι</th><th>Κατάσταση</th></tr>${rows}</table>` : '<p class="muted">Καμία ακόμα.</p>'}
+</div>
+${footer()}
+</div>`);
+}
+
+function backupPage({ user, csrf, errors = [], done = null, data = "", db = null }) {
+    return layout("Αντίγραφο ασφαλείας", `<div class="wrap">
+${header(user, csrf, "/backup")}
+${banner({ errors })}${done ? `<div class="banner ok">${escapeHtml(done)}</div>` : ""}
+<div class="two">
+  <div class="card">
+    <h2>Λήψη αντιγράφου</h2>
+    <p class="muted">Ένα αρχείο JSON με ό,τι ρυθμίζεται από τον πίνακα: ρυθμίσεις, μήνυμα επαλήθευσης, περιόδους, αυτόματες απαντήσεις, μηνύματα με κουμπιά και τη λίστα καθηγητών. Δεν περιέχει κωδικούς ή στοιχεία μελών.</p>
+    <a class="button primary" href="/backup.json">Λήψη αντιγράφου</a>
+  </div>
+  <div class="card">
+    <h2>Επαναφορά</h2>
+    <form method="post" action="/backup/restore" data-unsaved>
+      ${hiddenCsrf(csrf)}
+      <p class="muted">Οι ρυθμίσεις και τα κείμενα του αρχείου αντικαθιστούν τα τωρινά. Απαντήσεις και μηνύματα με κουμπιά με το ίδιο όνομα ενημερώνονται, τα υπόλοιπα προστίθενται. Τίποτα δεν διαγράφεται.</p>
+      <input type="file" accept="application/json,.json" data-load-into="#backup-data" aria-label="Αρχείο αντιγράφου">
+      <textarea id="backup-data" name="data" spellcheck="false" placeholder="ή επικολλήστε εδώ το περιεχόμενο του αρχείου">${escapeHtml(data)}</textarea>
+      <div class="actions"><label class="confirm"><input type="checkbox" name="confirm" value="1"> Καταλαβαίνω ότι θα αλλάξουν οι τωρινές ρυθμίσεις</label><button class="primary" type="submit">Επαναφορά</button></div>
+    </form>
+  </div>
+</div>
+${db ? `<div class="card">
+  <h2>Αντίγραφα της βάσης δεδομένων</h2>
+  <p class="muted">Όλοι οι πίνακες του bot (επαληθεύσεις, προσωρινές άδειες, στατιστικά, ρυθμίσεις), αυτόματα κάθε μέρα μετά τις 04:00. Κρατιούνται τα ${db.keep} πιο πρόσφατα, στο <code>${escapeHtml(db.dir)}</code>. Μόνο ο owner και οι Administrators τα βλέπουν, γιατί περιέχουν τα στοιχεία επαλήθευσης. Επαναφορά: <code>node scripts/restore-db.js &lt;αρχείο&gt;</code>.</p>
+  ${db.backups.length ? `<table class="list"><tr><th>Αρχείο</th><th>Μέγεθος</th><th></th></tr>${db.backups.map((b) => `<tr><td><code>${escapeHtml(b.name)}</code></td><td class="num">${(b.size / 1024).toFixed(1)} KB</td><td class="num"><a href="/backup/db?name=${encodeURIComponent(b.name)}">Λήψη</a></td></tr>`).join("")}</table>` : '<p class="muted">Κανένα αντίγραφο ακόμα. Το πρώτο θα γίνει μέσα στην επόμενη ώρα μετά τις 04:00, ή τώρα με το κουμπί.</p>'}
+  <form method="post" action="/backup/db/create" class="actions">${hiddenCsrf(csrf)}<button class="ghost" type="submit">Δημιουργία αντιγράφου τώρα</button></form>
+</div>` : ""}
 ${footer()}
 </div>`);
 }
@@ -393,12 +531,13 @@ ${footer()}
 
 // rules: [{ id, name, triggers, reply, deleteAfter, enabled, previewHtml }]
 // edit: rule being edited (or a new one), test: { text, rule, previewHtml } or null.
-function repliesPage({ user, csrf, rules, edit = null, errors = [], done = null, test = null }) {
+function repliesPage({ user, csrf, rules, edit = null, errors = [], done = null, test = null, channels = [] }) {
     const after = (secs) => (secs > 0 ? `Σβήνεται μετά από ${secs} δευτ.` : "Δεν σβήνεται");
     const cards = rules.map((r) => `<div class="card"><div class="rule">
   <div>
     <h3>${escapeHtml(r.name)} ${r.enabled ? "" : '<span class="tag off">ανενεργή</span>'}</h3>
-    <div class="meta">${escapeHtml(after(r.deleteAfter))} · απαντά μία φορά ανά 2 λεπτά σε κάθε μέλος</div>
+    <div class="meta">${escapeHtml(after(r.deleteAfter))} · ${r.cooldown ? `απαντά μία φορά ανά ${r.cooldown >= 60 && r.cooldown % 60 === 0 ? `${r.cooldown / 60} λεπτά` : `${r.cooldown} δευτ.`} σε κάθε μέλος` : "χωρίς αναμονή"} · ${r.channelIds?.length ? `μόνο σε ${r.channelIds.map((id) => `#${escapeHtml(channels.find((c) => c.id === id)?.name ?? id)}`).join(", ")}` : "σε όλα τα κανάλια"}</div>
+    ${r.hits !== undefined ? `<div class="meta"><b class="hits">${r.hits}</b> ${r.hits === 1 ? "απάντηση" : "απαντήσεις"} τις τελευταίες 30 ημέρες</div>` : ""}
     <div class="chips">${r.triggers.split(/\r?\n/).filter((t) => t.trim()).map((t) => `<code>${escapeHtml(t.trim())}</code>`).join("")}</div>
     <div class="rule-actions">
       <a class="button ghost" href="/replies?edit=${r.id}">Επεξεργασία</a>
@@ -408,14 +547,19 @@ function repliesPage({ user, csrf, rules, edit = null, errors = [], done = null,
   <div class="preview">${r.previewHtml}</div>
 </div></div>`).join("");
 
-    const e = edit || { id: "", name: "", triggers: "", reply: "", deleteAfter: 20, enabled: true };
+    const e = edit || { id: "", name: "", triggers: "", reply: "", deleteAfter: 20, enabled: true, channelIds: [], cooldown: 120 };
+    const chosen = new Set(e.channelIds || []);
+    const channelChecks = channels.map((c) => `<label><input type="checkbox" name="channels" value="${escapeHtml(c.id)}"${chosen.has(c.id) ? " checked" : ""}>#${escapeHtml(c.name)}</label>`).join("");
     const form = `<div class="card" id="form">
   <h2>${e.id ? `Επεξεργασία: ${escapeHtml(e.name)}` : "Νέα αυτόματη απάντηση"}</h2>
   <form method="post" action="/replies/save" data-unsaved>
     ${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(e.id)}">
     <div class="form-grid">
       <label class="block">Όνομα<input type="text" name="name" maxlength="100" value="${escapeHtml(e.name)}" placeholder="π.χ. Παλιά θέματα" required></label>
-      <label class="block">Διαγραφή της απάντησης μετά από (δευτερόλεπτα, 0 = ποτέ)<input type="number" name="deleteAfter" min="0" max="3600" value="${escapeHtml(e.deleteAfter)}"></label>
+      <div class="block-group">
+        <label class="block">Διαγραφή της απάντησης μετά από (δευτερόλεπτα, 0 = ποτέ)<input type="number" name="deleteAfter" min="0" max="3600" value="${escapeHtml(e.deleteAfter)}"></label>
+        <label class="block">Αναμονή πριν απαντήσει ξανά στο ίδιο μέλος (δευτερόλεπτα, 0 = καμία)<input type="number" name="cooldown" min="0" max="86400" value="${escapeHtml(e.cooldown ?? 120)}"></label>
+      </div>
       <label class="block">Πότε απαντά: μία φράση ανά γραμμή
         <textarea name="triggers" spellcheck="false" placeholder="παλια θεματ&#10;θεματα εξετασ">${escapeHtml(e.triggers)}</textarea>
         <span class="count">Ταιριάζει όταν όλες οι λέξεις μιας γραμμής υπάρχουν στο μήνυμα, με οποιαδήποτε σειρά. Γράψτε την αρχή κάθε λέξης: «θεματ» πιάνει θέμα, θέματα, θεμάτων. Κεφαλαία, τόνοι και greeklish δεν παίζουν ρόλο.</span>
@@ -427,6 +571,8 @@ function repliesPage({ user, csrf, rules, edit = null, errors = [], done = null,
         <div class="preview" id="reply-preview">${e.previewHtml || ""}</div>
       </label>
     </div>
+    <label class="block">Μόνο σε αυτά τα κανάλια <span class="muted">(κανένα επιλεγμένο: παντού)</span></label>
+    <div class="checks">${channelChecks}</div>
     <label class="envbox"><input type="checkbox" name="enabled" value="1"${e.enabled ? " checked" : ""}> Ενεργή</label>
     <div class="actions">${e.id ? '<a class="button ghost" href="/replies">Ακύρωση</a>' : ""}<button class="primary" type="submit">Αποθήκευση</button></div>
   </form>
@@ -441,6 +587,7 @@ function repliesPage({ user, csrf, rules, edit = null, errors = [], done = null,
   ${test ? (test.rule
         ? `<div class="match yes">Ταιριάζει με την απάντηση <b>${escapeHtml(test.rule.name)}</b>. Το bot θα απαντούσε:</div><div class="preview">${test.previewHtml}</div>`
         : '<div class="match no">Δεν ταιριάζει με καμία ενεργή απάντηση.</div>') : ""}
+  <p class="count">Η δοκιμή αγνοεί τα κανάλια: δείχνει τι θα απαντούσε σε ένα κανάλι όπου η απάντηση ισχύει.</p>
 </div>`;
 
     return layout("Αυτόματες απαντήσεις", `<div class="wrap">
@@ -475,6 +622,10 @@ function roleMenusPage({ user, csrf, menus, edit = null, options, errors = [], d
   <div>
     <h3>${escapeHtml(m.name)}</h3>
     <div class="status">${m.messageId ? `Δημοσιευμένο στο <b>#${escapeHtml(m.channelName || m.channelId)}</b>` : "Πρόχειρο, δεν έχει δημοσιευτεί"} · ${m.buttons.length} κουμπιά</div>
+    ${m.clicks && m.buttons.length ? `<table class="list clicks"><tr><th>Τελευταίες 30 ημέρες</th><th class="num">Πήραν</th><th class="num">Έβγαλαν</th></tr>${m.buttons.map((b) => {
+        const c = m.clicks[b.roleId] || { adds: 0, removes: 0 };
+        return `<tr><td>${escapeHtml(b.label || roleName(b.roleId) || "")}</td><td class="num">${c.adds}</td><td class="num">${c.removes}</td></tr>`;
+    }).join("")}</table>` : ""}
     <div class="rule-actions"><a class="button ghost" href="/role-menus?edit=${m.id}#form">Επεξεργασία</a></div>
   </div>
   <div>${discordMenuPreview(m, roleName)}</div>
@@ -583,13 +734,29 @@ ${footer()}
 // [{ area, summary, who, when }] as a list.
 const recentList = (items) => `<ul class="recent">${items.map((r) => `<li><span><span class="area">${escapeHtml(r.area)}</span> ${escapeHtml(r.summary)} <span class="muted">· ${escapeHtml(r.who)}</span></span><span class="when">${escapeHtml(r.when)}</span></li>`).join("")}</ul>`;
 
-function historyPage({ user, csrf, entries }) {
+// filters: { area, userId, q }. areas: names. people: [{ id, name }].
+function historyPage({ user, csrf, entries, filters = {}, total = entries.length, page = 1, pages = 1, areas = [], people = [] }) {
+    const areaOpts = areas.map((a) => `<option value="${escapeHtml(a)}"${a === filters.area ? " selected" : ""}>${escapeHtml(a)}</option>`).join("");
+    const peopleOpts = people.map((p) => `<option value="${escapeHtml(p.id)}"${p.id === filters.userId ? " selected" : ""}>${escapeHtml(p.name)}</option>`).join("");
+    const params = { ...(filters.area ? { area: filters.area } : {}), ...(filters.userId ? { who: filters.userId } : {}), ...(filters.q ? { q: filters.q } : {}) };
+    const link = (p) => `/history?${new URLSearchParams({ ...params, page: p })}`;
+    const filtered = Object.keys(params).length > 0;
     return layout("Ιστορικό", `<div class="wrap">
 ${header(user, csrf, "/history")}
 <div class="card">
+  <form class="toolbar" method="get" action="/history">
+    <label>Περιοχή<select name="area"><option value="">Όλες</option>${areaOpts}</select></label>
+    <label>Ποιος<select name="who"><option value="">Όλοι</option>${peopleOpts}</select></label>
+    <label>Αναζήτηση<input type="search" name="q" value="${escapeHtml(filters.q || "")}" placeholder="π.χ. όνομα μέλους, ρύθμιση"></label>
+    <button class="primary" type="submit">Φιλτράρισμα</button>
+    ${filtered ? '<a class="button ghost" href="/history">Καθαρισμός</a>' : ""}
+  </form>
+</div>
+<div class="card">
   <h2>Ιστορικό αλλαγών</h2>
-  ${entries.length ? recentList(entries) : '<p class="muted">Καμία αλλαγή ακόμα.</p>'}
-  <p class="count">Οι 100 πιο πρόσφατες αλλαγές από τον πίνακα.</p>
+  <p class="count">${total} ${total === 1 ? "αλλαγή" : "αλλαγές"}${filtered ? " με αυτά τα κριτήρια" : ""}</p>
+  ${entries.length ? recentList(entries) : '<p class="muted">Καμία αλλαγή.</p>'}
+  ${pages > 1 ? `<div class="pager">${page > 1 ? `<a class="button ghost" href="${escapeHtml(link(page - 1))}">Νεότερες</a>` : ""}<span class="muted">Σελίδα ${page} από ${pages}</span>${page < pages ? `<a class="button ghost" href="${escapeHtml(link(page + 1))}">Παλαιότερες</a>` : ""}</div>` : ""}
 </div>
 ${footer()}
 </div>`);
@@ -609,7 +776,7 @@ function sparkBars(points, color, unit) {
 }
 
 // user, csrf; info: overview numbers; activity: last 30 days; recent: panel changes; health: checks.
-function dashboardPage({ user, csrf, info, activity = null, recent = [], health = [], greeting = "Γεια σου" }) {
+function dashboardPage({ user, csrf, info, activity = null, recent = [], health = [], greeting = "Γεια σου", canLogoutEveryone = false }) {
     const n = (v) => Number(v).toLocaleString("el-GR");
     const problems = health.filter((c) => c.status !== "ok");
     const share = info.guildMembers ? Math.min(100, Math.round((info.verified / info.guildMembers) * 100)) : 0;
@@ -661,6 +828,10 @@ ${header(user, csrf, "/")}
         <li><a href="/stats">Στατιστικά μηνυμάτων</a></li>
         <li><a href="/settings">Ρυθμίσεις ρόλων και καναλιών</a></li>
       </ul>
+      <div class="session-actions">
+        <form method="post" action="/logout/all" class="inline" data-confirm="Να αποσυνδεθείς από τον πίνακα σε όλες τις συσκευές;">${hiddenCsrf(csrf)}<button class="ghost small" type="submit">Αποσύνδεση από όλες τις συσκευές</button></form>
+        ${canLogoutEveryone ? `<form method="post" action="/logout/everyone" class="inline" data-confirm="Να αποσυνδεθούν όλοι από τον πίνακα, σε όλες τις συσκευές;">${hiddenCsrf(csrf)}<button class="ghost small" type="submit">Αποσύνδεση όλων</button></form>` : ""}
+      </div>
     </div>
     <div class="card">
       <h2>Bot</h2>
@@ -687,6 +858,7 @@ const GROUPS = [
     ["semesters", "Εξάμηνα"],
     ["staff", "Διαχείριση"],
     ["channels", "Κανάλια"],
+    ["panel", "Πρόσβαση στον πίνακα"],
     ["bot", "Bot"],
 ];
 
@@ -720,6 +892,9 @@ function settingsPage({ user, csrf, settings, roles, channels, errors = [], save
         }
         if (s.type === "channel") {
             return `<select id="f-${s.key}" name="${s.key}"><option value="">(κανένα)</option>${channels.map((c) => `<option value="${escapeHtml(c.id)}"${c.id === s.value ? " selected" : ""}>#${escapeHtml(c.name)}${c.category ? ` (${escapeHtml(c.category)})` : ""}</option>`).join("")}</select>`;
+        }
+        if (s.type === "ids") {
+            return `<input type="text" id="f-${s.key}" name="${s.key}" maxlength="${s.maxLength ?? 1000}" value="${escapeHtml(String(s.value || "").split(",").filter(Boolean).join(", "))}" placeholder="π.χ. 111111111111111111, 222222222222222222">`;
         }
         if (s.type === "lines") {
             return `<textarea class="small" id="f-${s.key}" name="${s.key}" rows="5" spellcheck="false">${escapeHtml(s.value)}</textarea>`;
@@ -875,6 +1050,36 @@ ${footer()}
 }
 
 const nf = (n) => Number(n).toLocaleString("el-GR");
+const formatDate = (day) => { const [y, m, d] = String(day).split("-"); return `${Number(d)}/${Number(m)}/${y}`; };
+
+const MONTH_SHORT = ["Ιαν", "Φεβ", "Μαρ", "Απρ", "Μάι", "Ιούν", "Ιούλ", "Αύγ", "Σεπ", "Οκτ", "Νοέ", "Δεκ"];
+
+// Twelve bars, inline SVG (presentation attributes only, allowed by the CSP).
+function monthBars(months) {
+    const max = Math.max(1, ...months);
+    const bars = months.map((n, i) => {
+        const h = n ? Math.max(2, (n / max) * 100) : 1;
+        const x = 8 + i * 32;
+        return `<g><rect x="${x}" y="${(112 - h).toFixed(1)}" width="22" height="${h.toFixed(1)}" rx="3" fill="${n ? "#f4a11c" : "#3f4147"}"><title>${MONTH_SHORT[i]}: ${n}</title></rect>`
+            + `${n ? `<text x="${x + 11}" y="${(106 - h).toFixed(1)}" font-size="10" fill="#dbdee1" text-anchor="middle">${n}</text>` : ""}`
+            + `<text x="${x + 11}" y="128" font-size="10" fill="#949ba4" text-anchor="middle">${MONTH_SHORT[i]}</text></g>`;
+    }).join("");
+    return `<svg class="mini-chart" viewBox="0 0 392 134" role="img" aria-label="Επαληθεύσεις ανά μήνα">${bars}</svg>`;
+}
+
+const WEEKDAYS = ["Δευ", "Τρί", "Τετ", "Πέμ", "Παρ", "Σάβ", "Κυρ"];
+const WEEKDAYS_FULL = ["Δευτέρα", "Τρίτη", "Τετάρτη", "Πέμπτη", "Παρασκευή", "Σάββατο", "Κυριακή"];
+
+// grid[weekday 0=Monday][hour]: darker teal for busier hours.
+function hourHeatmap(grid) {
+    const max = Math.max(1, ...grid.flat());
+    const cell = 14;
+    const left = 34;
+    const cells = grid.map((row, d) => row.map((n, h) => `<rect x="${left + h * (cell + 2)}" y="${d * (cell + 2)}" width="${cell}" height="${cell}" rx="3" fill="#4fb8ba" fill-opacity="${n ? (0.12 + 0.88 * (n / max)).toFixed(2) : "0.05"}"><title>${WEEKDAYS_FULL[d]} ${String(h).padStart(2, "0")}:00: ${n} μηνύματα</title></rect>`).join("")
+        + `<text x="0" y="${d * (cell + 2) + 11}" font-size="10" fill="#949ba4">${WEEKDAYS[d]}</text>`).join("");
+    const hours = [0, 3, 6, 9, 12, 15, 18, 21].map((h) => `<text x="${left + h * (cell + 2)}" y="${7 * (cell + 2) + 10}" font-size="10" fill="#949ba4">${String(h).padStart(2, "0")}</text>`).join("");
+    return `<svg class="mini-chart" viewBox="0 0 ${left + 24 * (cell + 2)} ${7 * (cell + 2) + 14}" role="img" aria-label="Μηνύματα ανά ημέρα και ώρα">${cells}${hours}</svg>`;
+}
 
 // view: { year, years, channelId, channels, error, empty, total, dayCount, from, to, groups, top, chartUrl, csvUrl }
 function statsPage({ user, csrf, view }) {
@@ -894,7 +1099,13 @@ function statsPage({ user, csrf, view }) {
     } else {
         const stat = (value, label) => `<div class="stat"><b>${escapeHtml(value)}</b><span>${escapeHtml(label)}</span></div>`;
         const max = Math.max(1, ...view.groups.map((g) => g.count));
-        const periodRows = view.groups.map((g) => `<tr><td>${escapeHtml(g.name)}</td><td class="date">${escapeHtml(g.range)}</td><td class="num">${nf(g.count)}</td><td class="bar wide-only"><progress max="${max}" value="${g.count}"></progress></td></tr>`).join("");
+        const change = (now, before) => {
+            if (before === null || before === undefined) return "";
+            if (!before) return now ? '<span class="delta up">νέο</span>' : "";
+            const pct = Math.round(((now - before) / before) * 100);
+            return `<span class="delta ${pct >= 0 ? "up" : "down"}">${pct >= 0 ? "+" : ""}${pct}%</span>`;
+        };
+        const periodRows = view.groups.map((g) => `<tr><td>${escapeHtml(g.name)}</td><td class="date">${escapeHtml(g.range)}</td><td class="num">${nf(g.count)}</td>${view.hasPrevYear ? `<td class="num">${g.lastYear === null ? "" : nf(g.lastYear)} ${change(g.count, g.lastYear)}</td>` : ""}<td class="bar wide-only"><progress max="${max}" value="${g.count}"></progress></td></tr>`).join("");
         const topRows = view.top.map((c) => `<tr><td>#${escapeHtml(c.name)}</td><td class="num">${nf(c.count)}</td></tr>`).join("");
         body = `<div class="card">
   <div class="grid">
@@ -906,9 +1117,13 @@ function statsPage({ user, csrf, view }) {
 </div>
 <div class="card"><h2>Ανά ημέρα</h2><div class="chart-wrap">${view.chartSvg}</div><p class="count">Περάστε τον κέρσορα πάνω από το γράφημα για να δείτε κάθε ημέρα. <a href="${escapeHtml(view.chartUrl)}" download>Λήψη ως εικόνα</a></p></div>
 <div class="two">
-  <div class="card"><h2>Ανά περίοδο</h2>${periodRows ? `<table class="list"><tr><th>Περίοδος</th><th>Ημερομηνίες</th><th>Μηνύματα</th><th class="wide-only"></th></tr>${periodRows}</table>` : '<p class="muted">Δεν έχουν οριστεί περίοδοι.</p>'}</div>
+  <div class="card"><h2>Ανά περίοδο</h2>${periodRows ? `<table class="list"><tr><th>Περίοδος</th><th>Ημερομηνίες</th><th>Μηνύματα</th>${view.hasPrevYear ? "<th>Πέρσι</th>" : ""}<th class="wide-only"></th></tr>${periodRows}</table>` : '<p class="muted">Δεν έχουν οριστεί περίοδοι.</p>'}</div>
   ${view.channelId ? "" : `<div class="card"><h2>Πιο ενεργά κανάλια</h2>${topRows ? `<table class="list"><tr><th>Κανάλι</th><th>Μηνύματα</th></tr>${topRows}</table>` : '<p class="muted">Καμία καταμέτρηση.</p>'}</div>`}
 </div>
+${view.months || view.hours ? `<div class="two">
+  ${view.months ? `<div class="card"><h2>Επαληθεύσεις ανά μήνα</h2>${monthBars(view.months)}<p class="count">Μέλη που επαληθεύτηκαν το ${view.year} και είναι ακόμα επαληθευμένα.</p></div>` : ""}
+  ${view.hours ? `<div class="card"><h2>Ώρες δραστηριότητας</h2>${view.hours.first ? hourHeatmap(view.hours.grid) : ""}<p class="count">${view.hours.first ? `Μηνύματα ανά ημέρα της εβδομάδας και ώρα (ώρα Ελλάδας), από ${escapeHtml(formatDate(view.hours.first))}.` : "Μετριέται από αυτή την ενημέρωση και μετά. Θα εμφανιστεί με τα πρώτα μηνύματα."}</p></div>` : ""}
+</div>` : ""}
 <div class="actions"><a class="button ghost" href="${escapeHtml(view.csvUrl)}">Λήψη CSV</a></div>`;
     }
     return layout("Στατιστικά", `<div class="wrap">
@@ -919,4 +1134,4 @@ ${footer()}
 </div>`);
 }
 
-module.exports = { CSS, FAVICON_SVG, CLIENT_JS, repliesPage, roleMenusPage, welcomePage, escapeHtml, statsPage, historyPage, membersPage, guestsPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };
+module.exports = { CSS, FAVICON_SVG, CLIENT_JS, repliesPage, roleMenusPage, welcomePage, memberPage, backupPage, announcementsPage, escapeHtml, statsPage, historyPage, membersPage, guestsPage, loginPage, forbiddenPage, errorPage, notFoundPage, dashboardPage, settingsPage, verifyTextPage, periodsPage, facultyPage, messagePage };

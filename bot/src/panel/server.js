@@ -13,10 +13,11 @@ const { EmbedBuilder } = require("discord.js");
 const colors = require("../lib/colors");
 const { adminLog } = require("../lib/adminLog");
 const { rateLimiter, send, redirect, readForm, sameOrigin } = require("./http");
-const { formatDay } = require("../lib/messageStats");
+const { formatDay, getMeta } = require("../lib/messageStats");
+const settings = require("../lib/settings");
 
 // Loaded with this module (not per request), one file per area of the panel.
-const ROUTES = ["auth", "home", "stats", "people", "replies", "roleMenus", "texts", "faculty", "welcome", "settings"].map((file) => require(`./routes/${file}`));
+const ROUTES = ["health", "auth", "home", "stats", "people", "replies", "roleMenus", "texts", "faculty", "welcome", "backup", "announcements", "settings"].map((file) => require(`./routes/${file}`));
 
 // deps: { client, pool, config, fetchUser }. config: { baseUrl, clientId, clientSecret, sessionSecret,
 // guildId, adminRoleId, moderatorRoleId }.
@@ -27,16 +28,27 @@ function createHandler({ client, pool, config, fetchUser = oauth.fetchUser }) {
     const guild = () => client.guilds.fetch(config.guildId);
 
     // Read live, so a role changed in the settings applies to panel access right away.
-    const staffRoles = () => ({
-        adminRoleId: process.env.ADMIN_ROLE_ID || config.adminRoleId,
-        moderatorRoleId: process.env.MODERATOR_ROLE_ID || config.moderatorRoleId,
+    const staffRoles = (env = process.env) => ({
+        adminRoleId: env.ADMIN_ROLE_ID || config.adminRoleId,
+        moderatorRoleId: env.MODERATOR_ROLE_ID || config.moderatorRoleId,
+        accessRoleIds: settings.parseIds(env.PANEL_ACCESS_ROLE_IDS),
+        accessUserIds: settings.parseIds(env.PANEL_ACCESS_USER_IDS),
     });
+
+    // "Log out everywhere": sessions issued before the member's (or everyone's) logout time no
+    // longer count. Session cookies are signed, not stored, so this is how they are revoked.
+    async function revokedBefore(uid) {
+        const [mine, all] = await Promise.all([getMeta(pool, `panel_logout:${uid}`), getMeta(pool, "panel_logout_all")].map((p) => p.catch(() => null)));
+        const time = (v) => (Number(v) > 1e12 ? Number(v) : 0); // a Date.now() value, or nothing
+        return Math.max(time(mine), time(all));
+    }
 
     // The logged-in panel user, or null. Also re-checks the role on every request.
     async function currentUser(req) {
         const cookies = session.parseCookies(req.headers.cookie);
         const data = session.verify(config.sessionSecret, cookies[session.SESSION_COOKIE]);
         if (!data) return { state: "anonymous" };
+        if ((data.iat || 0) < await revokedBefore(data.uid)) return { state: "anonymous" };
         const member = await access.fetchMember(await guild(), data.uid);
         if (!access.canUsePanel(member, staffRoles())) return { state: "forbidden" };
         return { state: "ok", member, csrf: data.csrf };

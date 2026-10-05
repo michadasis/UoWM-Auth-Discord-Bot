@@ -35,7 +35,7 @@ test("a reply is sent once per member per rule within the cooldown, and deleted 
     t.mock.timers.enable({ apis: ["setTimeout"] });
     const table = [];
     const pool = { query: async (sql, p = []) => {
-        if (sql.startsWith("SELECT id, name")) return table;
+        if (sql.startsWith("SELECT * FROM auto_replies")) return table;
         if (sql.startsWith("INSERT INTO auto_replies")) { table.push({ id: 1, name: p[0], triggers: p[1], reply: p[2], delete_after: p[3], enabled: 1 }); return []; }
         if (sql.startsWith("SELECT meta_value")) return [];
         return [];
@@ -53,4 +53,14 @@ test("a reply is sent once per member per rule within the cooldown, and deleted 
     t.mock.timers.tick(20000);
     await new Promise((r) => setImmediate(r));
     assert.equal(deleted.length, 2);
+});
+
+test("rules limited to channels, and the per-rule wait", async () => {
+    const scoped = [autoReplies.toRule({ id: 9, name: "Μόνο help", triggers: "παλια θεματ", reply: "x", delete_after: 0, enabled: 1, channel_ids: "c-help", cooldown_seconds: 0 })];
+    assert.ok(autoReplies.findRule("παλιά θέματα", scoped, "c-help"));
+    assert.equal(autoReplies.findRule("παλιά θέματα", scoped, "c-general"), null);
+    assert.ok(autoReplies.findRule("παλιά θέματα", scoped)); // the panel tester ignores channels
+    const rule = autoReplies.toRule({ id: 9, name: "x", triggers: "t", reply: "x", delete_after: 0, enabled: 1 });
+    assert.equal(rule.cooldown, 120); // rows from before the column existed
+    assert.deepEqual(rule.channelIds, []);
 });

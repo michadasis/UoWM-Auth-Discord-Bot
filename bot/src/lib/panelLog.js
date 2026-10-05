@@ -36,4 +36,30 @@ async function recentEntries(pool, limit = 8) {
     }
 }
 
-module.exports = { ensurePanelLog, addEntry, recentEntries };
+// Filtered and paged: { area, userId, q } -> { entries, total, page, pages, areas, userIds }.
+async function queryEntries(pool, { area = "", userId = "", q = "", page = 1, pageSize = 50 } = {}) {
+    const empty = { entries: [], total: 0, page: 1, pages: 1, areas: [], userIds: [] };
+    try {
+        await ensurePanelLog(pool);
+        const where = [];
+        const params = [];
+        if (area) { where.push("area = ?"); params.push(area); }
+        if (userId) { where.push("user_id = ?"); params.push(userId); }
+        if (q) { where.push("summary LIKE ?"); params.push(`%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`); }
+        const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+        const total = Number((await pool.query(`SELECT COUNT(*) AS n FROM panel_log ${clause}`, params))[0]?.n ?? 0);
+        const pages = Math.max(1, Math.ceil(total / pageSize));
+        const current = Math.min(Math.max(1, Number(page) || 1), pages);
+        const rows = await pool.query(`SELECT at, user_id, area, summary FROM panel_log ${clause} ORDER BY id DESC LIMIT ? OFFSET ?`, [...params, pageSize, (current - 1) * pageSize]);
+        const areas = (await pool.query("SELECT DISTINCT area FROM panel_log ORDER BY area")).map((r) => r.area);
+        const userIds = (await pool.query("SELECT DISTINCT user_id FROM panel_log")).map((r) => r.user_id);
+        return {
+            entries: (rows || []).filter((r) => r && r.user_id && r.summary).map((r) => ({ at: new Date(r.at), userId: r.user_id, area: r.area, summary: r.summary })),
+            total, page: current, pages, areas, userIds,
+        };
+    } catch {
+        return empty;
+    }
+}
+
+module.exports = { ensurePanelLog, addEntry, recentEntries, queryEntries };

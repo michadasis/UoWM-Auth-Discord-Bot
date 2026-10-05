@@ -1,3 +1,5 @@
 shell.nix
 .env
 data/faculty-emails.txt
+# Database backups (they hold the verification records)
+backups/

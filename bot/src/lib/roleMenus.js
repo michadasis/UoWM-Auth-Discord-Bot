@@ -198,7 +198,8 @@ function assignable(guild, roleId) {
 // A click on a role button. The role must be one of that menu's buttons, so a forged button
 // cannot hand out any other role.
 // verifyChannelId: where /post-verify-info is, for the "verify first" hint (optional).
-async function handleClick(interaction, { verifyChannelId = null } = {}) {
+// onToggle(menuId, roleId, added): called after a role was given or taken (for counting).
+async function handleClick(interaction, { verifyChannelId = null, onToggle = null } = {}) {
     const [, menuId, roleId] = interaction.customId.split(":");
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const menu = getMenu(menuId);
@@ -217,9 +218,11 @@ async function handleClick(interaction, { verifyChannelId = null } = {}) {
     }
     if (member.roles.cache.has(roleId)) {
         await member.roles.remove(roleId, "Role button");
+        await onToggle?.(menu.id, roleId, false);
         return interaction.editReply({ content: `Αφαιρέθηκε ο ρόλος **${role.name}**.` });
     }
     await member.roles.add(roleId, "Role button");
+    await onToggle?.(menu.id, roleId, true);
     return interaction.editReply({ content: `Πήρες τον ρόλο **${role.name}**.` });
 }
 

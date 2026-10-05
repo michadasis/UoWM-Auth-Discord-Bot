@@ -24,7 +24,11 @@ function member(id) {
 }
 const guild = { name: "Πληροφορική UoWM", memberCount: 150, members: { fetch: async ({ user }) => { const m = member(user); if (!m) throw new Error("Unknown Member"); return m; } } };
 const client = { readyTimestamp: Date.now(), ws: { ping: 42 }, guilds: { fetch: async () => guild } };
-const pool = { query: async (sql) => sql.includes("FROM guests") ? [{ n: 3 }] : [{ affiliation: "student", n: 90 }, { affiliation: "faculty", n: 6 }] };
+const revoked = new Map(); // bot_meta keys for "log out everywhere"
+const pool = { query: async (sql, p = []) => {
+    if (sql.startsWith("SELECT meta_value")) return revoked.has(p[0]) ? [{ meta_value: revoked.get(p[0]) }] : [];
+    return sql.includes("FROM guests") ? [{ n: 3 }] : [{ affiliation: "student", n: 90 }, { affiliation: "faculty", n: 6 }];
+} };
 const config = { baseUrl: "https://panel.example.com:25569", clientId: "999", clientSecret: "s", sessionSecret: SECRET, guildId: "g", adminRoleId: "admin-role", moderatorRoleId: "mod-role" };
 
 let server;
@@ -162,4 +166,28 @@ test("polish: favicon, login notes and extra security headers", async () => {
     // An expired session cookie leads to the "expired" note.
     const expired = `${session.SESSION_COOKIE}=${session.sign(SECRET, { uid: ADMIN, csrf: "c", exp: Date.now() - 1 })}`;
     assert.equal((await get("/", expired)).headers.get("location"), "/login?n=expired");
+});
+
+test("panel access roles and members replace Admin and Moderator, owner always in", () => {
+    const m = (id, roleIds, owner = "0") => ({ id, guild: { ownerId: owner }, permissions: { has: () => false }, roles: { cache: new Set(roleIds) } });
+    const base = { adminRoleId: "admin", moderatorRoleId: "mod" };
+    assert.equal(access.canUsePanel(m("1", ["mod"]), base), true);
+    const limited = { ...base, accessRoleIds: ["panel"], accessUserIds: ["2"] };
+    assert.equal(access.canUsePanel(m("1", ["mod"]), limited), false);
+    assert.equal(access.canUsePanel(m("1", ["panel"]), limited), true);
+    assert.equal(access.canUsePanel(m("2", []), limited), true);
+    assert.equal(access.canUsePanel(m("3", [], "3"), limited), true); // owner
+});
+
+test("log out everywhere ends older sessions of that member", async () => {
+    const cookie = `${session.SESSION_COOKIE}=${session.sign(SECRET, { uid: ADMIN, csrf: "c", iat: Date.now(), exp: Date.now() + 3600e3 })}`;
+    assert.equal((await get("/", cookie)).status, 200);
+    revoked.set(`panel_logout:${ADMIN}`, String(Date.now() + 1000));
+    const after = await get("/", cookie);
+    assert.equal(after.status, 303);
+    assert.equal(after.headers.get("location"), "/login?n=expired");
+    revoked.clear();
+    revoked.set("panel_logout_all", String(Date.now() + 1000));
+    assert.equal((await get("/", cookie)).status, 303);
+    revoked.clear();
 });

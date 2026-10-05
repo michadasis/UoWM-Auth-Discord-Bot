@@ -2,13 +2,13 @@
 
 const pages = require("../pages");
 const panelLog = require("../../lib/panelLog");
-const { verifiedMembers, guestList, findMember } = require("../people");
+const { verifiedMembers, guestList, findMember, memberDetail, verifiedMembersCsv } = require("../people");
 const { removeVerification, AFFILIATION_LABELS } = require("../../lib/verification");
 const { giveGuest, removeGuest } = require("../../lib/guests");
 const { send, redirect } = require("../http");
 
 module.exports = function peopleRoutes(ctx) {
-    const { client, pool, guild, withUser, checkedForm, logChange } = ctx;
+    const { client, pool, guild, withUser, checkedForm, logChange, formatWhen } = ctx;
 
     return {
         "GET /members": async (req, res, ip, url) => withUser(req, res, async (who) => {
@@ -17,6 +17,27 @@ module.exports = function peopleRoutes(ctx) {
             const view = await verifiedMembers(pool, await guild(), { q, aff, page: url.searchParams.get("page") });
             const done = url.searchParams.get("done");
             return send(res, 200, pages.membersPage({ user: who.user, csrf: who.csrf, view: { ...view, q, aff, done: done ? `Αφαιρέθηκε η επαλήθευση του ${done}.` : null } }));
+        }),
+
+        "GET /members/view": async (req, res, ip, url) => withUser(req, res, async (who) => {
+            const id = String(url.searchParams.get("id") || "");
+            const detail = /^\d{17,20}$/.test(id) ? await memberDetail(pool, await guild(), id) : null;
+            if (!detail) return send(res, 404, pages.notFoundPage());
+            const g = await guild();
+            const whoNames = new Map();
+            const history = [];
+            for (const e of (await panelLog.recentEntries(pool, 300)).filter((x) => x.summary.includes(detail.name) || x.summary.includes(id)).slice(0, 20)) {
+                if (!whoNames.has(e.userId)) whoNames.set(e.userId, (await g.members.fetch(e.userId).catch(() => null))?.displayName ?? e.userId);
+                history.push({ area: e.area, summary: e.summary.replace(/\*\*/g, ""), who: whoNames.get(e.userId), when: formatWhen(e.at) });
+            }
+            return send(res, 200, pages.memberPage({ user: who.user, csrf: who.csrf, member: detail, history }));
+        }),
+
+        "GET /members.csv": async (req, res, ip, url) => withUser(req, res, async () => {
+            const q = (url.searchParams.get("q") || "").slice(0, 100);
+            const aff = ["student", "faculty", "staff"].includes(url.searchParams.get("aff")) ? url.searchParams.get("aff") : "";
+            const csv = await verifiedMembersCsv(pool, await guild(), { q, aff });
+            return send(res, 200, csv, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="members.csv"` });
         }),
 
         "POST /members/unverify": async (req, res) => withUser(req, res, async (who) => {

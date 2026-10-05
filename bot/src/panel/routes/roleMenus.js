@@ -6,6 +6,7 @@ const { renderDiscord } = require("../discordPreview");
 const panelLog = require("../../lib/panelLog");
 const roleMenus = require("../../lib/roleMenus");
 const { PermissionFlagsBits: Perm } = require("discord.js");
+const { clickTotals } = require("../../lib/usageStats");
 const { send, redirect } = require("../http");
 
 module.exports = function roleMenusRoutes(ctx) {
@@ -38,7 +39,11 @@ module.exports = function roleMenusRoutes(ctx) {
         const serverIconUrl = g.iconURL?.({ size: 64, extension: "png" }) ?? null;
         const withHtml = (m) => ({ ...m, descriptionHtml: renderDiscord(m.description || "", n), channelName: m.channelId ? n.channels.get(m.channelId) : null, footerIconSrc: roleMenus.footerIconUrl(m, serverIconUrl) });
         return send(res, status, pages.roleMenusPage({
-            user: who.user, csrf: who.csrf, menus: roleMenus.getMenus().map(withHtml), edit: edit ? withHtml(edit) : null, options, errors, done,
+            user: who.user, csrf: who.csrf, edit: edit ? withHtml(edit) : null, options, errors, done,
+            menus: await Promise.all(roleMenus.getMenus().map(async (m) => ({
+                ...withHtml(m),
+                clicks: Object.fromEntries(await clickTotals(pool, m.id).catch(() => new Map())),
+            }))),
         }));
     }
 

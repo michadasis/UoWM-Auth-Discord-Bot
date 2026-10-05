@@ -26,6 +26,8 @@ services:
     # Faculty list (data/faculty-emails.txt), read-only.
     volumes:
       - ./data:/bot/data:ro
+      # Database backups, kept outside the container.
+      - ./backups:/bot/backups
     environment:
       DISCORD_TOKEN: ${DISCORD_TOKEN}
       GUILD_ID: ${GUILD_ID}
@@ -47,6 +49,7 @@ services:
       EMAIL_STUDENT_PATTERN: ${EMAIL_STUDENT_PATTERN:-}
       FACULTY_EMAILS_FILE: /bot/data/faculty-emails.txt
       PERIODS_FILE: /bot/data/periods.json
+      DB_BACKUP_DIR: /bot/backups
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-}
       SMTP_SECURE: ${SMTP_SECURE:-}

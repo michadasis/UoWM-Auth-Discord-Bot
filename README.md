@@ -85,7 +85,7 @@ Admin commands are hidden from members without Manage Roles and additionally req
 
 1. Create an application at https://discord.com/developers/applications and add a bot.
 2. Copy the bot token into `DISCORD_TOKEN`. Never share it or commit it.
-3. Under Bot, enable **Server Members Intent** (privileged). The bot does not need Message Content Intent or Presence Intent.
+3. Under Bot, enable **Server Members Intent** and **Message Content Intent** (both privileged; the second is for the automatic replies). The bot does not need Presence Intent.
 4. Invite the bot with the scopes `bot` and `applications.commands` and these permissions:
    - Manage Roles
    - View Channels
@@ -188,6 +188,26 @@ One address per line, `#` starts a comment. Source for the department:
 https://cs.uowm.gr/en/home-page/members-of-the-staff/. The file is read on every `/auth`, so edits apply without a
 restart. It is gitignored so staff addresses are not republished in the repository. Staff not on the list can be
 given the role manually.
+
+## Safety nets
+
+- **Verification only inside the server:** `/auth` and `/code` are registered for servers only, so
+  they do not appear in DMs, and the bot also refuses them (and the code button) anywhere other
+  than `GUILD_ID`.
+- **Database backups:** every table of the bot's database except the short-lived email codes,
+  as gzipped JSON, once a day after 04:00 Greek time, in `DB_BACKUP_DIR` (default `backups/` in the
+  repo root, ignored by git; with Docker Compose `./backups`). The newest `DB_BACKUP_KEEP` (14) are
+  kept. In the panel (Αντίγραφο ασφαλείας) the owner and Administrators can list, download and make
+  one now; they hold the verification records, so nobody else sees them. A failed backup is
+  reported in the admin log. To restore, stop the bot and run from the bot folder:
+  `node --env-file=../.env scripts/restore-db.js <file>` to see what is in it, then add `--yes`.
+  On a new, empty database, start the bot once first so it creates the tables.
+- **Health check:** `GET <PANEL_URL>/health` (no login) answers `200 {"status":"ok"}` when
+  Discord and the database both work and `503` otherwise. Point a free uptime monitor at it (e.g.
+  UptimeRobot, HTTP(s) monitor every 5 minutes) with a Discord webhook alert to a private channel,
+  so you hear about it when the bot or its host goes down. Needs the panel to be on.
+- **Database watchdog:** the bot checks the database every 2 minutes and writes to the admin log
+  when it stops answering and when it is back.
 
 ## Welcome message
 
@@ -331,6 +351,31 @@ settings and texts.
 - **Καθηγητές:** a table with each address, the name from its comment, and whether it has been used
   to verify (only yes or no, never which Discord account), with search, add and remove; the whole
   file can still be edited as text.
+- **Usage counts:** clicks per role button (given and removed) and replies per automatic reply,
+  for the last 30 days, shown on their pages; messages per hour feed a weekday by hour heatmap on
+  the statistics page, next to verifications per month and each period compared with the same
+  period a year earlier. Tables `role_menu_clicks`, `auto_reply_hits` and `message_hours` hold
+  counts only, per day, and are created on first use.
+- **Member page:** name, affiliation, verification and join dates, guest reason, roles, panel
+  changes that mention them, and the remove actions; the member list downloads as CSV.
+- **History:** filter by area, person and text, 50 per page.
+- **Ανακοινώσεις:** write an embed (title, text, colour, footer, image) with a live preview and
+  send it to a channel now or at a set time in Greek time; a ping (@everyone or a role) goes in the
+  message text and needs confirming. Sent announcements can be corrected later, which edits the
+  message without pinging again. A timer sends scheduled ones every 30 seconds, including any that
+  came due while the bot was offline; failures are shown in the list. Table `announcements`.
+- **Panel access:** Ρυθμίσεις > Πρόσβαση στον πίνακα takes roles and member IDs; when set, only
+  they get in instead of Admin and Moderator. The owner and Administrators always get in, and a
+  change that would lock out the member saving it is refused.
+- **Log out everywhere:** from the home page, for yourself on every device, or (owner and
+  Administrators) for everyone. Sessions carry their issue time; logging out records a time in
+  `bot_meta`, and older sessions stop working.
+- **Automatic replies:** each rule can be limited to some channels (threads count as their parent)
+  and has its own wait before replying to the same member again.
+- **Αντίγραφο ασφαλείας:** download a JSON of everything the panel manages (settings, texts,
+  automatic replies, role button messages, faculty list; no secrets or member data) and restore
+  it. Restoring merges: replies and role button messages are matched by name, published messages
+  keep their Discord message, and nothing is deleted.
 - **Code layout:** `panel/server.js` holds login, sessions and the shared helpers; every area of
   the panel has its own file in `panel/routes/`.
 - **Layout:** works on phones (single column, wrapping tabs, scrollable chart and tables) and

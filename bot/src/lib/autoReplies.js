@@ -11,7 +11,7 @@ const { ensureSchema, getMeta, setMeta } = require("./messageStats");
 
 let rules = [];
 const cooldowns = new Map(); // `${ruleId}:${userId}` -> time of the last reply
-const COOLDOWN_MS = 2 * 60 * 1000;
+const DEFAULT_COOLDOWN = 120; // seconds between replies of one rule to one member
 
 async function ensureAutoReplies(pool) {
     await pool.query(`CREATE TABLE IF NOT EXISTS auto_replies (
@@ -25,6 +25,11 @@ async function ensureAutoReplies(pool) {
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (id)
     )`);
+    // Added later. Checked through information_schema, which works on MariaDB and MySQL.
+    for (const [column, definition] of [["channel_ids", "VARCHAR(2000) NOT NULL DEFAULT ''"], ["cooldown_seconds", `INT NOT NULL DEFAULT ${DEFAULT_COOLDOWN}`]]) {
+        const found = await pool.query("SELECT COUNT(*) AS n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'auto_replies' AND COLUMN_NAME = ?", [column]);
+        if (found?.[0] && Number(found[0].n) === 0) await pool.query(`ALTER TABLE auto_replies ADD COLUMN ${column} ${definition}`);
+    }
 }
 
 const DEFAULT_RULE = {
@@ -37,12 +42,12 @@ const DEFAULT_RULE = {
 // Loads the rules; on a fresh install adds the "old exam papers" rule as a starting point.
 async function loadAutoReplies(pool) {
     await ensureAutoReplies(pool);
-    let rows = await pool.query("SELECT id, name, triggers, reply, delete_after, enabled FROM auto_replies ORDER BY id");
+    let rows = await pool.query("SELECT * FROM auto_replies ORDER BY id");
     // Only once: if someone deletes every rule later, it stays that way.
     await ensureSchema(pool);
     if (!rows.length && !(await getMeta(pool, "auto_replies_seeded"))) {
         await pool.query("INSERT INTO auto_replies (name, triggers, reply, delete_after) VALUES (?, ?, ?, ?)", [DEFAULT_RULE.name, DEFAULT_RULE.triggers, DEFAULT_RULE.reply, DEFAULT_RULE.delete_after]);
-        rows = await pool.query("SELECT id, name, triggers, reply, delete_after, enabled FROM auto_replies ORDER BY id");
+        rows = await pool.query("SELECT * FROM auto_replies ORDER BY id");
     }
     await setMeta(pool, "auto_replies_seeded", "1");
     rules = rows.map(toRule);
@@ -57,6 +62,8 @@ function toRule(r) {
         reply: r.reply,
         deleteAfter: Number(r.delete_after),
         enabled: Boolean(Number(r.enabled)),
+        channelIds: String(r.channel_ids || "").split(",").filter(Boolean),
+        cooldown: r.cooldown_seconds === undefined || r.cooldown_seconds === null ? DEFAULT_COOLDOWN : Number(r.cooldown_seconds),
         phrases: parseTriggers(r.triggers),
     };
 }
@@ -69,11 +76,13 @@ function parseTriggers(text) {
 }
 
 // The first enabled rule whose trigger matches the text, or null.
-function findRule(text, list = rules) {
+// channelId: where the message was sent; rules limited to other channels are skipped.
+function findRule(text, list = rules, channelId = null) {
     const words = textToLatin(text).split(" ").filter(Boolean);
     if (!words.length) return null;
     for (const rule of list) {
         if (!rule.enabled) continue;
+        if (channelId && rule.channelIds?.length && !rule.channelIds.includes(channelId)) continue;
         if (rule.phrases.some((phrase) => phrase.every((p) => words.some((w) => w.startsWith(p))))) return rule;
     }
     return null;
@@ -86,16 +95,20 @@ function renderReply(reply, env = process.env) {
 }
 
 // Replies to a matching message. Returns the rule used, or null.
-async function handleMessage(message, now = Date.now()) {
-    const rule = findRule(message.content);
+// onReply(rule): called after a reply was sent (for counting).
+async function handleMessage(message, now = Date.now(), onReply = null) {
+    // Threads count as their parent channel.
+    const channelId = message.channel?.isThread?.() ? message.channel.parentId : message.channelId;
+    const rule = findRule(message.content, rules, channelId ?? null);
     if (!rule) return null;
     const key = `${rule.id}:${message.author.id}`;
     const last = cooldowns.get(key);
-    if (last !== undefined && now - last < COOLDOWN_MS) return null;
+    if (last !== undefined && now - last < rule.cooldown * 1000) return null;
     cooldowns.set(key, now);
     if (cooldowns.size > 5000) cooldowns.clear();
 
     const reply = await message.reply({ content: renderReply(rule.reply), allowedMentions: { repliedUser: true, parse: [] } });
+    await onReply?.(rule);
     if (rule.deleteAfter > 0) {
         const timer = setTimeout(() => reply.delete().catch(() => {}), rule.deleteAfter * 1000);
         timer.unref?.();
@@ -103,11 +116,11 @@ async function handleMessage(message, now = Date.now()) {
     return rule;
 }
 
-async function saveRule(pool, { id, name, triggers, reply, deleteAfter, enabled }, userId) {
+async function saveRule(pool, { id, name, triggers, reply, deleteAfter, enabled, channelIds = [], cooldown = DEFAULT_COOLDOWN }, userId) {
     if (id) {
-        await pool.query("UPDATE auto_replies SET name = ?, triggers = ?, reply = ?, delete_after = ?, enabled = ?, updated_by = ? WHERE id = ?", [name, triggers, reply, deleteAfter, enabled ? 1 : 0, userId, id]);
+        await pool.query("UPDATE auto_replies SET name = ?, triggers = ?, reply = ?, delete_after = ?, enabled = ?, channel_ids = ?, cooldown_seconds = ?, updated_by = ? WHERE id = ?", [name, triggers, reply, deleteAfter, enabled ? 1 : 0, channelIds.join(","), cooldown, userId, id]);
     } else {
-        await pool.query("INSERT INTO auto_replies (name, triggers, reply, delete_after, enabled, updated_by) VALUES (?, ?, ?, ?, ?, ?)", [name, triggers, reply, deleteAfter, enabled ? 1 : 0, userId]);
+        await pool.query("INSERT INTO auto_replies (name, triggers, reply, delete_after, enabled, channel_ids, cooldown_seconds, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [name, triggers, reply, deleteAfter, enabled ? 1 : 0, channelIds.join(","), cooldown, userId]);
     }
     return loadAutoReplies(pool);
 }

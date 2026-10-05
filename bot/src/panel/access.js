@@ -7,11 +7,17 @@ const { PermissionFlagsBits } = require("discord.js");
 const CACHE_MS = 60 * 1000;
 const cache = new Map(); // userId -> { at, member | null }
 
-function canUsePanel(member, { adminRoleId, moderatorRoleId }) {
+// With panel access roles or members set (Ρυθμίσεις > Πρόσβαση στον πίνακα), only those get in;
+// otherwise the Admin and Moderator roles. The owner and Administrators always get in, so nobody
+// can lock everyone out.
+function canUsePanel(member, { adminRoleId, moderatorRoleId, accessRoleIds = [], accessUserIds = [] }) {
     if (!member) return false;
     if (member.id === member.guild.ownerId) return true;
     if (member.permissions?.has(PermissionFlagsBits.Administrator)) return true;
     const roles = member.roles?.cache;
+    if (accessRoleIds.length || accessUserIds.length) {
+        return accessUserIds.includes(member.id) || Boolean(roles && accessRoleIds.some((id) => roles.has(id)));
+    }
     return Boolean(roles && ((adminRoleId && roles.has(adminRoleId)) || (moderatorRoleId && roles.has(moderatorRoleId))));
 }
 

@@ -59,6 +59,11 @@ function readSettingsForm(form, settings, guild) {
             if (lines.length > (def.maxLines ?? 20)) errors.push(`${def.label}: έως ${def.maxLines} γραμμές.`);
             lines.forEach((l, i) => { if (l.length > (def.maxLength ?? 200)) errors.push(`${def.label}: η γραμμή ${i + 1} ξεπερνά τους ${def.maxLength} χαρακτήρες.`); });
             value = lines.join("\n");
+        } else if (def.type === "ids") {
+            const ids = [...new Set(String(form.get(def.key) ?? "").split(/[\s,]+/).filter(Boolean))];
+            const bad = ids.filter((id) => !/^\d{17,20}$/.test(id));
+            if (bad.length) errors.push(`${def.label}: μη έγκυρο ID: ${bad.slice(0, 3).join(", ")}.`);
+            value = ids.join(",");
         } else if (def.type === "number") {
             value = String(form.get(def.key) ?? "").trim();
             const n = Number(value);

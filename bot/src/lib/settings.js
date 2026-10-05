@@ -16,6 +16,8 @@ const DEFINITIONS = [
     { key: "SEMESTER_PING_SECONDS", type: "number", group: "semesters", label: "Διαγραφή του ping μετά από", help: "Δευτερόλεπτα, αν δεν διαλέξουν εξάμηνο νωρίτερα. Προεπιλογή 5.", min: 1, max: 86400 },
     { key: "ADMIN_CHANNEL_ID", type: "channel", group: "channels", label: "Κανάλι καταγραφής", help: "Ιδιωτικό κανάλι για Admins και Moderators." },
     { key: "GUEST_CHANNEL_ID", type: "channel", group: "channels", label: "Κανάλι προσωρινών αδειών", help: "Καταγραφή των προσωρινών αδειών." },
+    { key: "PANEL_ACCESS_ROLE_IDS", type: "roles", group: "panel", label: "Ρόλοι με πρόσβαση", help: "Κανένας: οι ρόλοι Admin και Moderator. Ο owner και όσοι έχουν Administrator μπαίνουν πάντα." },
+    { key: "PANEL_ACCESS_USER_IDS", type: "ids", group: "panel", label: "Μέλη με πρόσβαση", help: "Discord IDs χωρισμένα με κόμμα, για άτομα χωρίς τους παραπάνω ρόλους.", maxLength: 1000 },
     { key: "VERIFY_CHANNEL_ID", type: "channel", group: "channels", label: "Κανάλι επαλήθευσης", help: "Όπου γίνεται το /auth. Χρησιμοποιείται στα links προς την επαλήθευση." },
     { key: "WELCOME_CHANNEL_ID", type: "channel", group: "welcome", label: "Κανάλι καλωσορίσματος", help: "Εδώ καλωσορίζεται κάθε νέο μέλος. Κενό: χωρίς καλωσόρισμα." },
     { key: "WELCOME_MESSAGE", type: "text", group: "welcome", label: "Μήνυμα καλωσορίσματος", help: "{μέλος} γίνεται mention του νέου μέλους και {επαλήθευση} link στο κανάλι επαλήθευσης. Κενό: το προεπιλεγμένο.", maxLength: 500 },

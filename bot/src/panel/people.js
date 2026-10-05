@@ -30,7 +30,7 @@ const formatDate = (value) => {
 };
 
 // { q, aff, page } -> { items, total, page, pages, counts }
-async function verifiedMembers(pool, guild, { q = "", aff = "", page = 1 } = {}) {
+async function verifiedMembers(pool, guild, { q = "", aff = "", page = 1, pageSize = PAGE_SIZE } = {}) {
     const rows = await pool.query("SELECT discord_user_id, affiliation, verified_at FROM users ORDER BY verified_at DESC");
     const members = await allMembers(guild);
     const counts = {};
@@ -41,9 +41,9 @@ async function verifiedMembers(pool, guild, { q = "", aff = "", page = 1 } = {})
         .filter((r) => r && r.discord_user_id && (!aff || r.affiliation === aff))
         .map((r) => ({ ...describe(r.discord_user_id, members.get(r.discord_user_id)), affiliation: r.affiliation, verifiedAt: formatDate(r.verified_at) }))
         .filter((m) => !needle || [m.name, m.username, m.id].some((v) => fold(v).includes(needle)));
-    const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+    const pages = Math.max(1, Math.ceil(all.length / pageSize));
     const current = Math.min(Math.max(1, Number(page) || 1), pages);
-    return { items: all.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE), total: all.length, page: current, pages, counts };
+    return { items: pageSize === Infinity ? all : all.slice((current - 1) * pageSize, current * pageSize), total: all.length, page: current, pages, counts };
 }
 
 async function guestList(pool, guild) {
@@ -76,3 +76,44 @@ async function findMember(guild, query) {
 }
 
 module.exports = { verifiedMembers, guestList, findMember, PAGE_SIZE };
+
+// Everything the panel knows about one member, or null if neither in the server nor on record.
+async function memberDetail(pool, guild, id) {
+    const member = await guild.members.fetch(id).catch(() => null);
+    const [user] = await pool.query("SELECT affiliation, verified_at FROM users WHERE discord_user_id = ?", [id]).catch(() => []);
+    const [guest] = await pool.query("SELECT reason, given_by FROM guests WHERE discord_id = ?", [id]).catch(() => []);
+    if (!member && !user && !guest) return null;
+    let givenBy = "";
+    if (guest?.given_by) {
+        const giver = await guild.members.fetch(guest.given_by).catch(() => null);
+        givenBy = giver ? giver.displayName : guest.given_by;
+    }
+    const roles = member
+        ? [...(member.roles?.cache?.values() ?? [])].filter((r) => r.id !== guild.id).sort((a, b) => b.position - a.position).map((r) => ({ id: r.id, name: r.name }))
+        : [];
+    return {
+        ...describe(id, member),
+        joinedAt: member?.joinedAt ? formatDate(member.joinedAt) : null,
+        affiliation: user?.affiliation ?? null,
+        verifiedAt: user ? formatDate(user.verified_at) : null,
+        guest: guest ? { reason: guest.reason, givenBy } : null,
+        roles,
+    };
+}
+
+const csvField = (value) => {
+    const text = String(value ?? "");
+    return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+// All verified members matching the filters, as CSV (UTF-8 with BOM for Excel).
+async function verifiedMembersCsv(pool, guild, { q = "", aff = "" } = {}) {
+    const { items } = await verifiedMembers(pool, guild, { q, aff, page: 1, pageSize: Infinity });
+    const labels = { student: "Φοιτητής", faculty: "Καθηγητής", staff: "Προσωπικό" };
+    const rows = [["Discord ID", "Όνομα", "Username", "Ιδιότητα", "Επαλήθευση", "Στον server"]]
+        .concat(items.map((m) => [m.id, m.name, m.username ?? "", labels[m.affiliation] ?? m.affiliation, m.verifiedAt, m.inServer ? "ναι" : "όχι"]));
+    return "\uFEFF" + rows.map((r) => r.map(csvField).join(",")).join("\r\n") + "\r\n";
+}
+
+module.exports.memberDetail = memberDetail;
+module.exports.verifiedMembersCsv = verifiedMembersCsv;

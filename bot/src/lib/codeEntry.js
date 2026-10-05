@@ -34,8 +34,18 @@ function codeModal() {
 }
 
 // Defers, runs the code and replies (ephemeral in the server, normal in DMs).
+// /auth and /code work only inside our server. The commands are registered for servers only, so
+// this is a second check: it also covers a stale command list in someone's Discord client and
+// interactions from any other server the bot might be in. Returns true if it replied (refused).
+async function outsideServer(interaction) {
+    if (interaction.inGuild() && interaction.guildId === process.env.GUILD_ID) return false;
+    await interaction.reply({ content: "Η επαλήθευση γίνεται μόνο μέσα στον server, στο κανάλι επαλήθευσης.", flags: MessageFlags.Ephemeral }).catch(() => {});
+    return true;
+}
+
 async function handleCode(interaction, code) {
-    await interaction.deferReply({ flags: interaction.guild !== null ? MessageFlags.Ephemeral : undefined });
+    if (await outsideServer(interaction)) return;
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     let result;
     try {
         result = await getVerification(interaction.client).submitCode(interaction.user.id, code);
@@ -46,4 +56,4 @@ async function handleCode(interaction, code) {
     await interaction.editReply({ embeds: [embedFor(result)], components: [] });
 }
 
-module.exports = { OPEN_BUTTON_ID, MODAL_ID, CODE_INPUT_ID, codeButtonRow, codeModal, handleCode };
+module.exports = { OPEN_BUTTON_ID, MODAL_ID, CODE_INPUT_ID, codeButtonRow, codeModal, handleCode, outsideServer };

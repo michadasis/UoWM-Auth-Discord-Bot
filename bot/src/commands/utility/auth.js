@@ -1,7 +1,7 @@
-const { SlashCommandBuilder, MessageFlags } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags, InteractionContextType } = require("discord.js");
 const { getVerification } = require("../../lib/services");
 const { embedFor } = require("../../lib/messages");
-const { codeButtonRow } = require("../../lib/codeEntry");
+const { codeButtonRow, outsideServer } = require("../../lib/codeEntry");
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -11,10 +11,13 @@ module.exports = {
             .setName('email')
             .setDescription('Το ιδρυματικό σας email ή όνομα χρήστη, π.χ. cs01234@uowm.gr')
             .setRequired(true)
-            .setMaxLength(80)),
+            .setMaxLength(80))
+        // Only inside the server: not in DMs, and not for people who are not members.
+        .setContexts(InteractionContextType.Guild),
 
     run: async ({ interaction, client }) => {
-        await interaction.deferReply({ flags: interaction.guild !== null ? MessageFlags.Ephemeral : undefined });
+        if (await outsideServer(interaction)) return;
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         let result;
         try {

@@ -6,6 +6,7 @@ const { OUTSIDE_PERIODS, canView, periodsForYear } = require("../../lib/activity
 const { buildActivitySvg, renderPng } = require("../../lib/activityChart");
 const { buildActivityCsv } = require("../../lib/activityCsv");
 const { ChannelType } = require("discord.js");
+const { verificationsByMonth, hourGrid } = require("../../lib/usageStats");
 const { SECURITY_HEADERS, send } = require("../http");
 
 module.exports = function statsRoutes(ctx) {
@@ -59,9 +60,19 @@ module.exports = function statsRoutes(ctx) {
         view.dayCount = Math.round((Date.parse(last) - Date.parse(days[0].day)) / 86400000) + 1;
         view.from = formatDay(days[0].day);
         view.to = formatDay(last);
+        // The same periods a year earlier, matched by name without the academic year.
+        const baseName = (name) => name.replace(/\s*\d{4}-\d{4}$/, "");
+        const prevDays = await dailyTotals(pool, `${q.year - 1}-01-01`, `${q.year - 1}-12-31`, q.channelId);
+        const prevByName = new Map();
+        if (prevDays.length) {
+            const prevPeriods = await periodsForYear(q.year - 1);
+            for (const gr of totalsByPeriod(prevDays, prevPeriods, OUTSIDE_PERIODS)) prevByName.set(baseName(gr.name), (prevByName.get(baseName(gr.name)) || 0) + gr.count);
+        }
+        view.hasPrevYear = prevDays.length > 0;
         view.groups = periods.length ? totalsByPeriod(days, periods, OUTSIDE_PERIODS).map((gr) => ({
             name: gr.name,
             count: gr.count,
+            lastYear: prevDays.length ? prevByName.get(baseName(gr.name)) ?? 0 : null,
             range: gr.period ? `${shortDay(gr.period.start < yearStart ? yearStart : gr.period.start)} έως ${shortDay(gr.period.end > yearEnd ? yearEnd : gr.period.end)}` : "",
         })) : [];
         view.top = [];
@@ -70,6 +81,10 @@ module.exports = function statsRoutes(ctx) {
             for (const c of await topChannels(pool, yearStart, yearEnd, 30)) {
                 if (view.top.length < 10 && visible.has(c.channelId)) view.top.push({ name: visible.get(c.channelId), count: c.count });
             }
+        }
+        if (!q.channelId) {
+            view.months = await verificationsByMonth(pool, q.year);
+            view.hours = await hourGrid(pool, yearStart, last);
         }
         view.chartUrl = `/stats/chart.png?${statsParams(q.year, q.channelId)}`;
         view.chartSvg = buildActivitySvg({ year: q.year, days, periods, today: q.today, interactive: true });

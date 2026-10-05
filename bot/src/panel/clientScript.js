@@ -118,6 +118,15 @@ const CLIENT_JS = `(() => {
     });
   });
 
+  // A file picker that loads a text file into a textarea: <input type="file" data-load-into="#id">.
+  document.querySelectorAll("input[type=file][data-load-into]").forEach((input) => {
+    const target = document.querySelector(input.dataset.loadInto);
+    input.addEventListener("change", async () => {
+      const file = input.files && input.files[0];
+      if (file && target) target.value = await file.text();
+    });
+  });
+
   // Plain text that mirrors a field as you type: <input data-live-text="#id">.
   document.querySelectorAll("[data-live-text]").forEach((input) => {
     const target = document.querySelector(input.dataset.liveText);

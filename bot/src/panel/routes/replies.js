@@ -4,10 +4,18 @@ const pages = require("../pages");
 const { renderDiscord } = require("../discordPreview");
 const panelLog = require("../../lib/panelLog");
 const autoReplies = require("../../lib/autoReplies");
+const { hitTotals } = require("../../lib/usageStats");
 const { send, redirect } = require("../http");
+const { guildOptions } = require("../settingsForm");
 
 module.exports = function repliesRoutes(ctx) {
-    const { pool, withUser, names, checkedForm } = ctx;
+    const { pool, withUser, names, checkedForm, guild } = ctx;
+
+    async function textChannels() {
+        const g = await guild();
+        await g.channels.fetch();
+        return guildOptions(g).channels;
+    }
 
     // The bot loads the rules on startup; the panel makes sure they are there too.
     let rulesLoaded = false;
@@ -22,7 +30,8 @@ module.exports = function repliesRoutes(ctx) {
         "GET /replies": async (req, res, ip, url) => withUser(req, res, async (who) => {
             await ensureRulesLoaded();
             const n = await names();
-            const rules = autoReplies.getRules().map((r) => ({ ...r, previewHtml: renderDiscord(autoReplies.renderReply(r.reply), n) }));
+            const hits = await hitTotals(pool).catch(() => new Map());
+            const rules = autoReplies.getRules().map((r) => ({ ...r, hits: hits.get(r.id) ?? 0, previewHtml: renderDiscord(autoReplies.renderReply(r.reply), n) }));
             const editId = Number(url.searchParams.get("edit"));
             const edit = editId ? rules.find((r) => r.id === editId) ?? null : null;
             const testText = (url.searchParams.get("test") || "").slice(0, 500);
@@ -32,7 +41,7 @@ module.exports = function repliesRoutes(ctx) {
                 test = { text: testText, rule, previewHtml: rule ? renderDiscord(autoReplies.renderReply(rule.reply), n) : "" };
             }
             const done = { saved: "Η απάντηση αποθηκεύτηκε.", deleted: "Η απάντηση διαγράφηκε." }[url.searchParams.get("done")] ?? null;
-            return send(res, 200, pages.repliesPage({ user: who.user, csrf: who.csrf, rules, edit, test, done }));
+            return send(res, 200, pages.repliesPage({ user: who.user, csrf: who.csrf, rules, edit, test, done, channels: await textChannels() }));
         }),
 
         "POST /replies/save": async (req, res) => withUser(req, res, async (who) => {
@@ -47,8 +56,13 @@ module.exports = function repliesRoutes(ctx) {
                 reply: String(form.get("reply") || "").replace(/\r\n/g, "\n").trim(),
                 deleteAfter: Number(form.get("deleteAfter")),
                 enabled: form.get("enabled") === "1",
+                channelIds: [...new Set(form.getAll("channels").filter(Boolean))],
+                cooldown: Number(form.get("cooldown") ?? 120),
             };
             const errors = [];
+            const known = new Set((await textChannels()).map((c) => c.id));
+            if (rule.channelIds.some((id) => !known.has(id))) errors.push("Κάποιο από τα κανάλια δεν υπάρχει πια.");
+            if (!Number.isInteger(rule.cooldown) || rule.cooldown < 0 || rule.cooldown > 86400) errors.push("Η αναμονή πρέπει να είναι από 0 έως 86400 δευτερόλεπτα.");
             if (!rule.name) errors.push("Δώστε ένα όνομα.");
             if (!autoReplies.parseTriggers(rule.triggers).length) errors.push("Γράψτε τουλάχιστον μία φράση στο «Πότε απαντά».");
             if (!rule.reply) errors.push("Γράψτε τι απαντά.");
@@ -58,7 +72,7 @@ module.exports = function repliesRoutes(ctx) {
             if (errors.length) {
                 const n = await names();
                 const rules = autoReplies.getRules().map((r) => ({ ...r, previewHtml: renderDiscord(autoReplies.renderReply(r.reply), n) }));
-                return send(res, 400, pages.repliesPage({ user: who.user, csrf: who.csrf, rules, edit: rule, errors }));
+                return send(res, 400, pages.repliesPage({ user: who.user, csrf: who.csrf, rules, edit: rule, errors, channels: await textChannels() }));
             }
             await autoReplies.saveRule(pool, rule, who.user.id);
             await panelLog.addEntry(pool, who.user.id, "Αυτόματες απαντήσεις", `${id ? "Άλλαξε" : "Νέα"}: ${rule.name}${rule.enabled ? "" : " (ανενεργή)"}`);

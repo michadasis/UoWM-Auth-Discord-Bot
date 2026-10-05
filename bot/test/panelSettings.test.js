@@ -63,6 +63,7 @@ after(() => server.close());
 beforeEach(async () => {
     for (const key of [...table.keys()]) await settings.setSetting(pool, key, null, ADMIN);
     process.env.ADMIN_ROLE_ID = "r-admin";
+    process.env.MODERATOR_ROLE_ID = "r-mod";
 });
 
 // Like the browser: every field is sent with its current value, except the ones changed here.
@@ -128,8 +129,12 @@ test("invalid choices are refused and nothing is saved", async () => {
         assert.equal(table.size, 0, JSON.stringify(fields));
     }
     // Roles that are only checked (not assigned) may sit above the bot.
-    assert.equal((await save(form({ ADMIN_ROLE_ID: "r-high" }))).status, 303);
-    assert.equal(process.env.ADMIN_ROLE_ID, "r-high");
+    assert.equal((await save(form({ MODERATOR_ROLE_ID: "r-high" }))).status, 303);
+    assert.equal(process.env.MODERATOR_ROLE_ID, "r-high");
+    // Moving the Admin role away from the role of the member saving would lock them out.
+    const lockout = await save(form({ ADMIN_ROLE_ID: "r-high" }));
+    assert.equal(lockout.status, 400);
+    assert.match(await lockout.text(), /θα έχανες κι εσύ την πρόσβαση/);
 });
 
 test("several statuses and an interval can be saved", async () => {
