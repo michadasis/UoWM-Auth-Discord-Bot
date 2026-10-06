@@ -242,6 +242,40 @@ details.card[open] summary { margin-bottom:10px; }
   .stat b { font-size:20px; }
 }
 @media (max-width:860px) { .two { grid-template-columns:1fr; } }
+/* Tables that become one block per row on phones; labels come from data-label. */
+@media (max-width:640px) {
+  table.stack, table.stack tbody { display:block; }
+  table.stack tr:first-child { display:none; }
+  table.stack tr { display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; padding:10px 0; border-top:1px solid var(--line); }
+  table.stack tr:nth-child(2) { border-top:0; }
+  table.stack td { display:block; border:0; padding:0; text-align:left; }
+  table.stack td.full { flex-basis:100%; }
+  table.stack td.strong { font-weight:600; color:var(--white); }
+  table.stack td.muted-m { color:var(--muted); font-size:13px; }
+  table.stack td[data-label]::before { content:attr(data-label) ": "; color:var(--muted); }
+  table.stack td.action { margin-left:auto; }
+  table.stack td.wide-only { display:none; }
+  table.clicks th, table.clicks td { font-size:12px; white-space:normal; }
+  /* Role button editor: one block per button. */
+  .btn-rows, .btn-rows tbody { display:block; }
+  .btn-rows tr:first-child { display:none; }
+  .btn-rows tr { display:grid; grid-template-columns:64px minmax(0,1fr); gap:8px; padding:12px 0; border-top:1px solid var(--line); }
+  .btn-rows tr:nth-child(2) { border-top:0; }
+  .btn-rows td { padding:0; }
+  .btn-rows td:not(.pos) { grid-column:1 / -1; }
+  .btn-rows td[data-label="Ρόλος"] { grid-column:2; grid-row:1; }
+  .btn-rows td[data-label]::before { content:attr(data-label); display:block; color:var(--muted); font-size:12px; margin-bottom:3px; }
+  .btn-rows td.pos::before { content:"#"; display:block; color:var(--muted); font-size:12px; margin-bottom:3px; }
+}
+@media (max-width:420px) {
+  .top { gap:8px; }
+  .brand { font-size:14px; gap:6px; }
+  .brand .dots { gap:3px; }
+  .brand .dots i { width:7px; height:7px; }
+  .user { gap:6px; }
+  .user img { width:26px; height:26px; }
+  .user button { padding:6px 10px; font-size:13px; }
+}
 @media (max-width:980px) { .editor-grid { grid-template-columns:1fr; } .editor-grid .preview-card { position:static; max-height:none; } }
 `;
 
@@ -354,10 +388,10 @@ function membersPage({ user, csrf, view }) {
         .map(([v, l]) => `<option value="${v}"${v === view.aff ? " selected" : ""}>${l}${v && view.counts[v] !== undefined ? ` (${view.counts[v]})` : ""}</option>`).join("");
     const link = (page) => `/members?${new URLSearchParams({ ...(view.q ? { q: view.q } : {}), ...(view.aff ? { aff: view.aff } : {}), page })}`;
     const rows = view.items.map((m) => `<tr>
-<td><a class="plain" href="/members/view?id=${escapeHtml(m.id)}">${personCell(m)}</a></td>
+<td class="full"><a class="plain" href="/members/view?id=${escapeHtml(m.id)}">${personCell(m)}</a></td>
 <td>${escapeHtml(AFF_LABELS[m.affiliation] ?? m.affiliation)}${m.inServer ? "" : ' <span class="tag off">εκτός server</span>'}</td>
-<td class="date">${escapeHtml(m.verifiedAt)}</td>
-<td class="num"><form method="post" action="/members/unverify" class="inline" data-confirm="Να αφαιρεθεί η επαλήθευση του ${escapeHtml(m.name)}; Θα χάσει τους ρόλους του και θα πρέπει να ξανακάνει /auth.">${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(m.id)}"><button class="danger" type="submit">Αφαίρεση</button></form></td>
+<td class="date" data-label="Επαλήθευση">${escapeHtml(m.verifiedAt)}</td>
+<td class="num action"><form method="post" action="/members/unverify" class="inline" data-confirm="Να αφαιρεθεί η επαλήθευση του ${escapeHtml(m.name)}; Θα χάσει τους ρόλους του και θα πρέπει να ξανακάνει /auth.">${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(m.id)}"><button class="danger" type="submit">Αφαίρεση</button></form></td>
 </tr>`).join("");
     return layout("Μέλη", `<div class="wrap">
 ${header(user, csrf, "/members")}
@@ -369,7 +403,7 @@ ${view.done ? `<div class="banner ok">${escapeHtml(view.done)}</div>` : ""}
     <button class="primary" type="submit">Αναζήτηση</button>
   </form>
   <p class="count">${view.total} επαληθευμένα μέλη${view.q || view.aff ? " με αυτά τα κριτήρια" : ""} · <a href="/members.csv?${escapeHtml(new URLSearchParams({ ...(view.q ? { q: view.q } : {}), ...(view.aff ? { aff: view.aff } : {}) }).toString())}">Λήψη CSV</a></p>
-  ${rows ? `<table class="list"><tr><th>Μέλος</th><th>Ιδιότητα</th><th>Επαλήθευση</th><th></th></tr>${rows}</table>` : '<p class="muted">Κανένα μέλος.</p>'}
+  ${rows ? `<table class="list stack"><tr><th>Μέλος</th><th>Ιδιότητα</th><th>Επαλήθευση</th><th></th></tr>${rows}</table>` : '<p class="muted">Κανένα μέλος.</p>'}
   ${view.pages > 1 ? `<div class="pager">${view.page > 1 ? `<a class="button ghost" href="${escapeHtml(link(view.page - 1))}">Προηγούμενη</a>` : ""}<span class="muted">Σελίδα ${view.page} από ${view.pages}</span>${view.page < view.pages ? `<a class="button ghost" href="${escapeHtml(link(view.page + 1))}">Επόμενη</a>` : ""}</div>` : ""}
 </div>
 <p class="muted">Η αφαίρεση σβήνει τα δεδομένα του μέλους και αφαιρεί τους ρόλους επαλήθευσης και εξαμήνων, όπως το /force-unverify. Καταγράφεται στο admin log.</p>
@@ -503,10 +537,10 @@ ${footer()}
 // guests: [{ id, name, username, avatar, inServer, reason, givenBy }]
 function guestsPage({ user, csrf, guests, errors = [], done = null, form = {} }) {
     const rows = guests.map((g) => `<tr>
-<td>${personCell(g)}${g.inServer ? "" : ' <span class="tag off">εκτός server</span>'}</td>
-<td>${escapeHtml(g.reason || "")}</td>
-<td>${escapeHtml(g.givenBy || "")}</td>
-<td class="num"><form method="post" action="/guests/remove" class="inline" data-confirm="Να αφαιρεθεί η προσωρινή άδεια του ${escapeHtml(g.name)};">${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(g.id)}"><button class="danger" type="submit">Αφαίρεση</button></form></td>
+<td class="full">${personCell(g)}${g.inServer ? "" : ' <span class="tag off">εκτός server</span>'}</td>
+<td class="full" data-label="Αιτιολογία">${escapeHtml(g.reason || "")}</td>
+<td data-label="Από">${escapeHtml(g.givenBy || "")}</td>
+<td class="num action"><form method="post" action="/guests/remove" class="inline" data-confirm="Να αφαιρεθεί η προσωρινή άδεια του ${escapeHtml(g.name)};">${hiddenCsrf(csrf)}<input type="hidden" name="id" value="${escapeHtml(g.id)}"><button class="danger" type="submit">Αφαίρεση</button></form></td>
 </tr>`).join("");
     return layout("Προσωρινές άδειες", `<div class="wrap">
 ${header(user, csrf, "/guests")}
@@ -523,7 +557,7 @@ ${banner({ errors })}${done ? `<div class="banner ok">${escapeHtml(done)}</div>`
 </div>
 <div class="card">
   <h2>Ενεργές προσωρινές άδειες (${guests.length})</h2>
-  ${rows ? `<table class="list"><tr><th>Μέλος</th><th>Αιτιολογία</th><th>Από</th><th></th></tr>${rows}</table>` : '<p class="muted">Καμία.</p>'}
+  ${rows ? `<table class="list stack"><tr><th>Μέλος</th><th>Αιτιολογία</th><th>Από</th><th></th></tr>${rows}</table>` : '<p class="muted">Καμία.</p>'}
 </div>
 ${footer()}
 </div>`);
@@ -642,10 +676,10 @@ function roleMenusPage({ user, csrf, menus, edit = null, options, errors = [], d
             const styleOpts = [["primary", "Μπλε"], ["secondary", "Γκρι"], ["success", "Πράσινο"], ["danger", "Κόκκινο"]].map(([v, l]) => `<option value="${v}"${v === (b.style || "primary") ? " selected" : ""}>${l}</option>`).join("");
             return `<tr>
 <td class="pos"><input type="number" name="btn_pos" value="${i + 1}" min="1" max="99" aria-label="Σειρά"></td>
-<td><select name="btn_role" aria-label="Ρόλος"><option value="">(κανένας, το κουμπί αγνοείται)</option>${roleOpts}</select></td>
-<td><input type="text" name="btn_label" maxlength="80" value="${escapeHtml(b.label || "")}" placeholder="Όνομα ρόλου" aria-label="Κείμενο"></td>
-<td><select name="btn_emoji" aria-label="Emoji του server"><option value="">(κανένα)</option>${emojiOpts}</select><input type="text" name="btn_emoji_text" maxlength="16" value="${escapeHtml(isServerEmoji ? "" : b.emoji || "")}" placeholder="ή emoji, π.χ. 🔹" aria-label="Unicode emoji"></td>
-<td><select name="btn_style" aria-label="Χρώμα">${styleOpts}</select></td>
+<td data-label="Ρόλος"><select name="btn_role" aria-label="Ρόλος"><option value="">(κανένας, το κουμπί αγνοείται)</option>${roleOpts}</select></td>
+<td data-label="Κείμενο"><input type="text" name="btn_label" maxlength="80" value="${escapeHtml(b.label || "")}" placeholder="Όνομα ρόλου" aria-label="Κείμενο"></td>
+<td data-label="Emoji"><select name="btn_emoji" aria-label="Emoji του server"><option value="">(κανένα)</option>${emojiOpts}</select><input type="text" name="btn_emoji_text" maxlength="16" value="${escapeHtml(isServerEmoji ? "" : b.emoji || "")}" placeholder="ή emoji, π.χ. 🔹" aria-label="Unicode emoji"></td>
+<td data-label="Χρώμα"><select name="btn_style" aria-label="Χρώμα">${styleOpts}</select></td>
 </tr>`;
         }).join("");
         form = `<div class="card" id="form">
@@ -1010,10 +1044,10 @@ ${footer()}
 function facultyPage({ user, csrf, text, count, domain, entries = [], errors = [], done = null, add = {} }) {
     const verifiedCount = entries.filter((e) => e.verified).length;
     const rows = entries.map((e) => `<tr data-row>
-<td>${escapeHtml(e.name || "")}</td>
+<td class="full strong">${escapeHtml(e.name || "")}</td>
 <td><code>${escapeHtml(e.email)}</code></td>
 <td>${e.verified ? '<span class="tag on">επαληθευμένος</span>' : '<span class="muted">όχι ακόμα</span>'}</td>
-<td class="num"><form method="post" action="/faculty/remove" class="inline" data-confirm="Να αφαιρεθεί το ${escapeHtml(e.email)}${e.name ? ` (${escapeHtml(e.name)})` : ""} από τη λίστα;">${hiddenCsrf(csrf)}<input type="hidden" name="email" value="${escapeHtml(e.email)}"><button class="danger" type="submit">Αφαίρεση</button></form></td>
+<td class="num action"><form method="post" action="/faculty/remove" class="inline" data-confirm="Να αφαιρεθεί το ${escapeHtml(e.email)}${e.name ? ` (${escapeHtml(e.name)})` : ""} από τη λίστα;">${hiddenCsrf(csrf)}<input type="hidden" name="email" value="${escapeHtml(e.email)}"><button class="danger" type="submit">Αφαίρεση</button></form></td>
 </tr>`).join("");
     return layout("Καθηγητές", `<div class="wrap">
 ${header(user, csrf, "/faculty")}
@@ -1032,7 +1066,7 @@ ${banner({ errors })}${done ? `<div class="banner ok">${escapeHtml(done)}</div>`
   <h2>Λίστα (${entries.length})</h2>
   <p class="count">${verifiedCount} από ${entries.length} έχουν ήδη επαληθευτεί στον server.</p>
   <input type="search" class="filter" data-filter="#faculty-table" placeholder="Αναζήτηση ονόματος ή email..." aria-label="Αναζήτηση">
-  <div class="card-scroll"><table class="list" id="faculty-table"><tr><th>Όνομα</th><th>Email</th><th>Κατάσταση</th><th></th></tr>${rows}</table></div>
+  <div class="card-scroll"><table class="list stack" id="faculty-table"><tr><th>Όνομα</th><th>Email</th><th>Κατάσταση</th><th></th></tr>${rows}</table></div>
 </div>
 <details class="card"${errors.length && text ? " open" : ""}>
   <summary><b>Επεξεργασία ως κείμενο</b> <span class="muted">για πολλές αλλαγές μαζί</span></summary>
@@ -1105,7 +1139,7 @@ function statsPage({ user, csrf, view }) {
             const pct = Math.round(((now - before) / before) * 100);
             return `<span class="delta ${pct >= 0 ? "up" : "down"}">${pct >= 0 ? "+" : ""}${pct}%</span>`;
         };
-        const periodRows = view.groups.map((g) => `<tr><td>${escapeHtml(g.name)}</td><td class="date">${escapeHtml(g.range)}</td><td class="num">${nf(g.count)}</td>${view.hasPrevYear ? `<td class="num">${g.lastYear === null ? "" : nf(g.lastYear)} ${change(g.count, g.lastYear)}</td>` : ""}<td class="bar wide-only"><progress max="${max}" value="${g.count}"></progress></td></tr>`).join("");
+        const periodRows = view.groups.map((g) => `<tr><td class="full strong">${escapeHtml(g.name)}</td><td class="date full muted-m">${escapeHtml(g.range)}</td><td class="num" data-label="Μηνύματα">${nf(g.count)}</td>${view.hasPrevYear ? `<td class="num" data-label="Πέρσι">${g.lastYear === null ? "" : nf(g.lastYear)} ${change(g.count, g.lastYear)}</td>` : ""}<td class="bar wide-only"><progress max="${max}" value="${g.count}"></progress></td></tr>`).join("");
         const topRows = view.top.map((c) => `<tr><td>#${escapeHtml(c.name)}</td><td class="num">${nf(c.count)}</td></tr>`).join("");
         body = `<div class="card">
   <div class="grid">
@@ -1117,7 +1151,7 @@ function statsPage({ user, csrf, view }) {
 </div>
 <div class="card"><h2>Ανά ημέρα</h2><div class="chart-wrap">${view.chartSvg}</div><p class="count">Περάστε τον κέρσορα πάνω από το γράφημα για να δείτε κάθε ημέρα. <a href="${escapeHtml(view.chartUrl)}" download>Λήψη ως εικόνα</a></p></div>
 <div class="two">
-  <div class="card"><h2>Ανά περίοδο</h2>${periodRows ? `<table class="list"><tr><th>Περίοδος</th><th>Ημερομηνίες</th><th>Μηνύματα</th>${view.hasPrevYear ? "<th>Πέρσι</th>" : ""}<th class="wide-only"></th></tr>${periodRows}</table>` : '<p class="muted">Δεν έχουν οριστεί περίοδοι.</p>'}</div>
+  <div class="card"><h2>Ανά περίοδο</h2>${periodRows ? `<table class="list stack"><tr><th>Περίοδος</th><th>Ημερομηνίες</th><th>Μηνύματα</th>${view.hasPrevYear ? "<th>Πέρσι</th>" : ""}<th class="wide-only"></th></tr>${periodRows}</table>` : '<p class="muted">Δεν έχουν οριστεί περίοδοι.</p>'}</div>
   ${view.channelId ? "" : `<div class="card"><h2>Πιο ενεργά κανάλια</h2>${topRows ? `<table class="list"><tr><th>Κανάλι</th><th>Μηνύματα</th></tr>${topRows}</table>` : '<p class="muted">Καμία καταμέτρηση.</p>'}</div>`}
 </div>
 ${view.months || view.hours ? `<div class="two">
