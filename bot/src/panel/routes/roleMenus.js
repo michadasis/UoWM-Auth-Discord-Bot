@@ -26,6 +26,8 @@ module.exports = function roleMenusRoutes(ctx) {
     async function menuOptions(g) {
         await g.roles.fetch();
         await g.channels.fetch();
+        // Re-fetched every time: the bot has no emoji intent, so emojis added later never reach the cache.
+        await g.emojis?.fetch?.().catch(() => null);
         const { roles, channels } = guildOptions(g);
         const emojis = g.emojis?.cache ? [...g.emojis.cache.values()].map((e) => ({ name: e.name, code: `<${e.animated ? "a" : ""}:${e.name}:${e.id}>` })).sort((a, b) => a.name.localeCompare(b.name)) : [];
         return { roles, channels, emojis };
