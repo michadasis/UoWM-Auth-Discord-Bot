@@ -216,6 +216,8 @@ details.card[open] summary { margin-bottom:10px; }
 }
 .actions.sticky { position:sticky; bottom:0; z-index:5; margin:16px -4px 0; padding:12px 4px; background:linear-gradient(to top, var(--bg) 70%, rgba(30,31,34,0)); }
 .confirm { display:flex; gap:8px; align-items:center; margin-right:auto; color:var(--muted); font-size:14px; }
+.update-mode { display:flex; flex-wrap:wrap; gap:6px 16px; margin-right:auto; color:var(--muted); font-size:14px; }
+.update-mode label { display:flex; gap:6px; align-items:center; }
 .health { list-style:none; margin:0; padding:0; }
 .health li { display:flex; gap:10px; align-items:flex-start; padding:9px 0; border-top:1px solid var(--line); font-size:14px; }
 .health li:first-child { border-top:0; }
@@ -978,7 +980,7 @@ function verifyTextPage({ user, csrf, template, previewHtml, length, maxLength, 
     const chips = placeholders.map(([name, role]) => `<span class="chip"><code>{${escapeHtml(name)}}</code> → ${escapeHtml(role ? `@${role}` : "δεν έχει οριστεί")}</span>`).join("");
     return layout("Μήνυμα επαλήθευσης", `<div class="wrap wide">
 ${header(user, csrf, "/verify-text")}
-${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Το μήνυμα στο #επαλήθευση θα ξανασταλεί με ping, αν άλλαξε." })}
+${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Το μήνυμα στο #επαλήθευση ενημερώνεται όπως διαλέξατε." })}
 <form method="post" action="/verify-text" data-unsaved>
 <input type="hidden" name="csrf" value="${escapeHtml(csrf)}">
 <div class="editor-grid">
@@ -994,10 +996,13 @@ ${banner({ errors, saved, savedText: "Αποθηκεύτηκε. Το μήνυμ�
     <div class="preview" id="verify-preview">${previewHtml}</div>
   </div>
 </div>
-<p class="muted">${sourceNote(fromPanel, "bot/src/lib/privacyNotice.js")} Κάθε αποθήκευση που αλλάζει το κείμενο ξαναστέλνει το μήνυμα με ping σε όλους.</p>
+<p class="muted">${sourceNote(fromPanel, "bot/src/lib/privacyNotice.js")} Με <b>Επεξεργασία</b> αλλάζει το μήνυμα που ήδη υπάρχει, χωρίς ειδοποίηση. Με <b>Νέο μήνυμα με ping</b> το παλιό σβήνεται και στέλνεται νέο που κάνει ping σε όλους.</p>
 <div class="actions sticky">
   ${fromPanel ? '<button class="ghost" type="submit" name="action" value="reset">Επαναφορά στο αρχείο</button>' : ""}
-  <label class="confirm"><input type="checkbox" name="confirm" value="1"> Θα ξανασταλεί με ping σε όλους</label>
+  <div class="update-mode" role="radiogroup" aria-label="Τρόπος ενημέρωσης">
+    <label><input type="radio" name="update" value="edit" checked> Επεξεργασία, χωρίς ping</label>
+    <label><input type="radio" name="update" value="ping"> Νέο μήνυμα με ping σε όλους</label>
+  </div>
   <button class="ghost" type="submit" name="action" value="preview">Προεπισκόπηση</button>
   <button class="primary" type="submit" name="action" value="save">Αποθήκευση</button>
 </div>

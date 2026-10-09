@@ -1,8 +1,10 @@
 // The message posted by /post-verify-info. The bot remembers where it is (bot_meta) and keeps it
 // in sync with its text: the version edited in the admin panel if there is one, otherwise
 // privacyNotice.js. It checks every minute (and right after a panel save) and, when the text
-// changes, posts it again (pinging everyone and the roles) and deletes the old one. Discord never
-// sends notifications for edited messages, so a new message is the only way to ping on every update.
+// changes, either posts it again (pinging everyone and the roles) and deletes the old one, or
+// edits the current one. Discord never sends notifications for edited messages, so a new message
+// is the only way to ping. The panel chooses which on every save; other changes (privacyNotice.js,
+// the role settings, a backup restore) post a new message, as before.
 
 const fs = require("fs");
 const pool = require("./database");
@@ -21,6 +23,12 @@ let loadedMtime = -1;
 
 // The text includes role mentions from the settings: re-read it after a panel change.
 require("./settings").onChange(() => { loadedMtime = -1; });
+
+// How the next change goes out: "ping" posts a new message, "edit" edits the current one.
+// Set by the panel right before it saves; cleared once the change has been applied.
+let nextMode = null;
+function setNextMode(mode) { nextMode = mode === "edit" ? "edit" : "ping"; }
+const getNextMode = () => nextMode;
 
 let syncClient = null;
 // A text saved in the panel applies right away instead of at the next minute.
@@ -49,17 +57,25 @@ async function location() {
     return { channelId, messageId };
 }
 
-// Reposts the message if its text differs from privacyNotice.js.
+// Updates the message if its text differs from the current text: edits it or posts a new one
+// (see nextMode).
 async function sync(client) {
     const where = await location();
-    if (!where) return;
+    if (!where) { nextMode = null; return; }
     try {
         const text = currentText();
         const channel = await client.channels.fetch(where.channelId);
         const message = await channel.messages.fetch(where.messageId);
-        if (message.content === text) return;
+        if (message.content === text) { nextMode = null; return; }
+        if (nextMode === "edit") {
+            await message.edit({ content: text, allowedMentions: { parse: [] } });
+            nextMode = null;
+            console.log("Verify info message edited (no ping).");
+            return;
+        }
         await post(client, channel);
-        console.log("Verify info message reposted from privacyNotice.js.");
+        nextMode = null;
+        console.log("Verify info message reposted (with ping).");
     } catch (err) {
         if (err.code === UNKNOWN_MESSAGE || err.code === UNKNOWN_CHANNEL) {
             console.log("Verify info message was deleted, no longer updating it.");
@@ -101,4 +117,4 @@ async function startSyncing(client) {
     setInterval(() => sync(client).catch((err) => console.error("Verify info sync failed:", err)), CHECK_MS).unref();
 }
 
-module.exports = { post, sync, startSyncing, currentText, fileText };
+module.exports = { post, sync, startSyncing, currentText, fileText, setNextMode, getNextMode };

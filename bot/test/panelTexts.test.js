@@ -22,6 +22,7 @@ const texts = require("../src/lib/texts");
 const { renderDiscord } = require("../src/panel/discordPreview");
 const { toLines, fromLines } = require("../src/panel/periodLines");
 const { renderTemplate, toTemplate } = require("../src/lib/verifyTemplate");
+const verifyInfo = require("../src/lib/verifyInfoMessage");
 
 const table = new Map();
 const pool = {
@@ -95,26 +96,31 @@ test("verify text: opens with the file text, previews without saving, saves, res
     assert.match(await preview.text(), /@Φοιτητής/);
     assert.equal(table.size, 0);
 
-    // A changed text reposts the message with pings, so it needs the confirmation box.
-    const unconfirmed = await post("/verify-text", { action: "save", template: "# Νέο {Φοιτητής}" });
-    assert.equal(unconfirmed.status, 400);
-    assert.match(await unconfirmed.text(), /ping/);
-    assert.equal(table.size, 0);
+    // The page offers both ways, editing (no ping) selected.
+    assert.match(first, /name="update" value="edit" checked/);
+    assert.match(first, /name="update" value="ping"/);
 
-    const saved = await post("/verify-text", { action: "save", template: "# Νέο {Φοιτητής}", confirm: "1" });
+    // Without a choice the message is edited, no ping.
+    const saved = await post("/verify-text", { action: "save", template: "# Νέο {Φοιτητής}" });
     assert.equal(saved.status, 303);
     assert.equal(table.get("verify_info"), "# Νέο {Φοιτητής}");
     assert.equal(texts.getText("verify_info"), "# Νέο {Φοιτητής}");
     assert.deepEqual(heard, ["verify_info"]);
+    assert.equal(verifyInfo.getNextMode(), "edit");
 
-    const reset = await post("/verify-text", { action: "reset" });
+    const pinged = await post("/verify-text", { action: "save", template: "# Νεότερο {Φοιτητής}", update: "ping" });
+    assert.equal(pinged.status, 303);
+    assert.equal(verifyInfo.getNextMode(), "ping");
+
+    const reset = await post("/verify-text", { action: "reset", update: "edit" });
     assert.equal(reset.status, 303);
     assert.equal(texts.getText("verify_info"), null);
+    assert.equal(verifyInfo.getNextMode(), "edit");
 });
 
 test("verify text: unknown placeholders and too long texts are refused", async () => {
     for (const template of ["{Φοιτητες}", "x".repeat(2001), "   "]) {
-        const res = await post("/verify-text", { action: "save", template, confirm: "1" });
+        const res = await post("/verify-text", { action: "save", template });
         assert.equal(res.status, 400);
         assert.match(await res.text(), /Δεν αποθηκεύτηκε τίποτα/);
     }

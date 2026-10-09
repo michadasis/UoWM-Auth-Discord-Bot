@@ -3,7 +3,7 @@
 const pages = require("../pages");
 const texts = require("../../lib/texts");
 const { PLACEHOLDERS, MAX_LENGTH, renderTemplate, toTemplate, checkTemplate } = require("../../lib/verifyTemplate");
-const { fileText } = require("../../lib/verifyInfoMessage");
+const { fileText, setNextMode } = require("../../lib/verifyInfoMessage");
 const { periodEntries } = require("../../lib/activityData");
 const { expandPeriods, dayKey, formatDay } = require("../../lib/messageStats");
 const { renderDiscord } = require("../discordPreview");
@@ -68,10 +68,14 @@ module.exports = function textsRoutes(ctx) {
             const form = await checkedForm(req, res, who, "/verify-text");
             if (!form) return;
             const action = form.get("action");
+            // "ping": new message with pings; "edit" (the default): edit the posted message, no ping.
+            const mode = form.get("update") === "ping" ? "ping" : "edit";
+            const how = mode === "ping" ? "νέο μήνυμα με ping" : "επεξεργασία χωρίς ping";
             if (action === "reset") {
                 if (texts.getText("verify_info") !== null) {
+                    setNextMode(mode);
                     await texts.setText(pool, "verify_info", null, who.user.id);
-                    await logChange(who, "Μήνυμα επαλήθευσης", "Επαναφορά στο privacyNotice.js.");
+                    await logChange(who, "Μήνυμα επαλήθευσης", `Επαναφορά στο privacyNotice.js (${how}).`);
                 }
                 return redirect(res, "/verify-text?saved=1");
             }
@@ -79,13 +83,11 @@ module.exports = function textsRoutes(ctx) {
             if (action === "preview") return renderVerifyText(res, who, { template, previewed: true });
             const errors = checkTemplate(template);
             const before = texts.getText("verify_info") ?? toTemplate(fileText());
-            if (template !== before && form.get("confirm") !== "1") {
-                errors.push("Επιβεβαιώστε ότι το μήνυμα θα ξανασταλεί με ping σε όλους, τσεκάροντας το κουτί δίπλα στην Αποθήκευση.");
-            }
             if (errors.length) return renderVerifyText(res, who, { template, errors }, 400);
             if (template !== before || texts.getText("verify_info") === null) {
+                setNextMode(mode);
                 await texts.setText(pool, "verify_info", template, who.user.id);
-                await logChange(who, "Μήνυμα επαλήθευσης", `Το κείμενο άλλαξε (${renderTemplate(template).length} χαρακτήρες).`);
+                await logChange(who, "Μήνυμα επαλήθευσης", `Το κείμενο άλλαξε (${renderTemplate(template).length} χαρακτήρες, ${how}).`);
             }
             return redirect(res, "/verify-text?saved=1");
         }),
